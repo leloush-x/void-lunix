@@ -38,7 +38,9 @@ and the matugen fallback degrade to warnings when offline.
 
 - `[ -b "$DISK" ]` → `[ -e "$DISK" ]` in `lib/auto.sh` / `lib/partition.sh`
   (containers cannot create block-device nodes; `/tmp/fakedisk` is a file).
-- Scenario B forces `UEFI=yes` (no EFI firmware in a container).
+- `UEFI` detection is neutralized: scenario A always runs BIOS (CI runners
+  boot UEFI) and scenario B sets `UEFI=yes` itself (no EFI firmware in a
+  container).
 - Scenario A simulates BIOS on whatever arch the host is — on aarch64 the
   early `check_firmware_support` guard is turned into a warning in the copy
   (BIOS GRUB is x86-only, so this scenario is a simulation there).

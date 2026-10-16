@@ -31,6 +31,9 @@ grep -q '\[ -e "\$DISK" \]' /tmp/drysrc/lib/partition.sh || { echo "sandbox patc
 # scenario A simulates BIOS on (possibly) aarch64 — skip the early firmware guard
 sed -i 's/die "BIOS boot is not supported/warnlog "SKIPPED in sandbox: BIOS boot is not supported/' /tmp/drysrc/lib/detect.sh
 grep -q 'warnlog "SKIPPED in sandbox: BIOS boot' /tmp/drysrc/lib/detect.sh || { echo "sandbox patch failed (firmware guard)"; exit 1; }
+# scenario A must run BIOS even on UEFI machines (CI runners boot UEFI); B sets UEFI=yes itself
+sed -i 's|\[ -d /sys/firmware/efi \] && UEFI=yes|UEFI=no  # sandbox: force BIOS for scenario A|' /tmp/drysrc/lib/detect.sh
+grep -q 'UEFI=no  # sandbox: force BIOS' /tmp/drysrc/lib/detect.sh || { echo "sandbox patch failed (force BIOS)"; exit 1; }
 
 bash "$SELF/mkstubs.sh"
 
