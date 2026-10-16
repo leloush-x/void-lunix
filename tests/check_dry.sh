@@ -50,8 +50,12 @@ else
   check "multilib skipped ($ARCH)" bash -c "! test -e '$A/etc/xbps.d/20-repository-multilib.conf'"
 fi
 check "no desktop extra conf"    bash -c "! test -e '$A/etc/xbps.d/30-repository-desktop.conf'"
-check "locale.conf"              grep -q "LANG=en_US.UTF-8" "$A/etc/locale.conf"
 check "rc.conf keymap"           grep -q 'KEYMAP="us"' "$A/etc/rc.conf"
+if [ "$LIBC" = glibc ]; then
+  check "locale.conf"            grep -q "LANG=en_US.UTF-8" "$A/etc/locale.conf"
+else
+  check "no locale.conf (musl)"  bash -c "! test -e '$A/etc/locale.conf'"
+fi
 check "X keyboard conf"          test -s "$A/etc/X11/xorg.conf.d/00-keyboard.conf"
 check "pipewire drop-in 1"       test -L "$A/etc/pipewire/pipewire.conf.d/10-wireplumber.conf"
 check "pipewire drop-in 2"       test -L "$A/etc/pipewire/pipewire.conf.d/20-pipewire-pulse.conf"
