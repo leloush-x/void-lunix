@@ -99,7 +99,9 @@ build_pkg_list() {
   out+=" ${UCODE[*]:-}"
 
   if [ "$UEFI" = yes ]; then
-    out+=" grub grub-x86_64-efi efibootmgr"
+    local efi_grub="grub-x86_64-efi"
+    case "${XBPS_ARCH:-x86_64}" in aarch64*) efi_grub="grub-arm64-efi" ;; esac
+    out+=" grub $efi_grub efibootmgr"
   else
     out+=" grub"
   fi

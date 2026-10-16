@@ -17,14 +17,31 @@ install_matugen() {
   local dl=""
   if command -v curl >/dev/null 2>&1; then
     local arch_pat="x86_64"
-    case "$XBPS_ARCH" in aarch64*) arch_pat="aarch64" ;; esac
+    case "${XBPS_ARCH:-x86_64}" in aarch64*) arch_pat="aarch64" ;; esac
     local libc_pat="gnu"; [ "$LIBC" = musl ] && libc_pat="musl"
-    dl="$(curl -fsSL -m 20 https://api.github.com/repos/InioX/matugen/releases/latest 2>>"$LOGFILE" \
-          | grep -oE '"browser_download_url": *"[^"]+' \
-          | cut -d'"' -f4 \
-          | grep -E "${arch_pat}.*linux.*${libc_pat}" \
-          | grep -vE '\.(sha256|sig|asc)$' \
-          | head -n1)"
+
+    # Asset names changed across releases ("matugen-4.2.0-x86_64.tar.gz",
+    # "matugen-x86_64-unknown-linux-gnu.tar.gz", ...): match the arch token
+    # and prefer the build matching the target libc.
+    local urls assets url base
+    urls="$(curl -fsSL -m 20 https://api.github.com/repos/InioX/matugen/releases/latest 2>>"$LOGFILE" \
+            | grep -oE '"browser_download_url": *"[^"]+' \
+            | cut -d'"' -f4 \
+            | grep -vE '\.(sha256|sig|asc)$' || true)"
+    assets=""
+    while IFS= read -r url; do
+      [ -n "$url" ] || continue
+      base="${url##*/}"
+      case "$base" in *"$arch_pat"*) assets="${assets}${url}"$'\n' ;; esac
+    done <<< "$urls"
+    if [ "$libc_pat" = musl ]; then
+      dl="$(printf '%s' "$assets" | grep -i musl | head -n1 || true)"
+    else
+      dl="$(printf '%s' "$assets" | grep -i -v musl | head -n1 || true)"
+    fi
+    if [ -z "$dl" ]; then
+      dl="$(printf '%s' "$assets" | head -n1 || true)"
+    fi
   fi
 
   if [ -z "$dl" ]; then

@@ -6,9 +6,16 @@ detect_environment() {
   UEFI=no
   [ -d /sys/firmware/efi ] && UEFI=yes
 
-  # arch + libc via xbps (falls back to uname)
-  local arch
-  arch="$(xbps-uhelper arch 2>/dev/null || uname -m)"
+  # arch + libc via xbps (falls back to uname, then to the musl loader)
+  local arch from_xbps=yes
+  arch="$(xbps-uhelper arch 2>/dev/null)" || from_xbps=no
+  if [ -z "$arch" ]; then arch="$(uname -m)"; from_xbps=no; fi
+  if [ "$from_xbps" = no ]; then
+    case "$arch" in
+      *musl*) ;;
+      *) ls /lib/ld-musl-*.so.1 >/dev/null 2>&1 && arch="${arch}-musl" ;;
+    esac
+  fi
   XBPS_ARCH="$arch"
   LIBC=glibc
   case "$arch" in *musl*) LIBC=musl ;; esac
@@ -31,6 +38,16 @@ detect_environment() {
   esac
 
   verb "detected: uefi=$UEFI arch=$arch libc=$LIBC ram=${RAM_MB}MB ucode=${UCODE[*]:-none}"
+}
+
+# check_firmware_support — legacy BIOS boot is x86-only (GRUB i386-pc).
+# Fails early, before the disk is touched, instead of late at grub-install.
+check_firmware_support() {
+  [ "$UEFI" = no ] || return 0
+  case "${XBPS_ARCH:-x86_64}" in
+    x86_64*|i686*) return 0 ;;
+  esac
+  die "BIOS boot is not supported on ${XBPS_ARCH} — boot the installer in UEFI mode."
 }
 
 # list_disks -> lines "NAME SIZE MODEL"

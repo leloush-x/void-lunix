@@ -19,16 +19,22 @@ install_bootloader() {
   sed -i -E 's|^#?GRUB_TIMEOUT=.*|GRUB_TIMEOUT=5|' "$grubdef" || true
   verb "grub cmdline: $cmdline"
 
+  local grub_target="x86_64-efi"
+  case "${XBPS_ARCH:-x86_64}" in aarch64*) grub_target="arm64-efi" ;; esac
+
   if [ "$UEFI" = yes ]; then
-    say "Installing GRUB (UEFI)"
-    if ! chroot "$TARGET" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+    say "Installing GRUB (UEFI, $grub_target)"
+    if ! chroot "$TARGET" grub-install --target="$grub_target" --efi-directory=/boot/efi \
          --bootloader-id=void --recheck >>"$LOGFILE" 2>&1; then
       warnlog "standard grub-install failed, retrying with --removable"
-      chroot "$TARGET" grub-install --target=x86_64-efi --efi-directory=/boot/efi \
+      chroot "$TARGET" grub-install --target="$grub_target" --efi-directory=/boot/efi \
         --removable --recheck >>"$LOGFILE" 2>&1 \
         || die "grub-install (UEFI) failed — see $LOGFILE"
     fi
   else
+    if [ "${XBPS_ARCH:-x86_64}" != x86_64 ]; then
+      warnlog "BIOS GRUB (i386-pc) on $XBPS_ARCH is not bootable (validation should have stopped this); UEFI is required on this architecture."
+    fi
     say "Installing GRUB (BIOS)"
     chroot "$TARGET" grub-install --target=i386-pc --recheck "$DISK" >>"$LOGFILE" 2>&1 \
       || die "grub-install (BIOS) failed — see $LOGFILE"

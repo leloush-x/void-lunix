@@ -31,6 +31,7 @@ auto_defaults() {
 }
 
 auto_validate() {
+  check_firmware_support
   [ -n "${DISK:-}" ] || die "Profile error: DISK is required."
   [ -b "$DISK" ] || die "Not a block device: $DISK"
   case "$FILESYSTEM" in ext4|btrfs) ;; *) die "FILESYSTEM must be ext4 or btrfs";; esac
