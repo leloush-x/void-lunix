@@ -40,7 +40,7 @@ Boot the official Void live ISO (root shell on tty1), get online
 default installer once to configure networking), then:
 
 ```sh
-git clone https://github.com/YOU/void-lunix.git
+git clone https://github.com/leloush-x/void-lunix.git
 cd void-lunix
 ./voidc
 ```
@@ -48,7 +48,7 @@ cd void-lunix
 No git on the image? Use curl:
 
 ```sh
-curl -fsSL https://github.com/YOU/void-lunix/archive/refs/heads/main.tar.gz | tar xz
+curl -fsSL https://github.com/leloush-x/void-lunix/archive/refs/heads/main.tar.gz | tar xz
 cd void-lunix-main
 ./voidc
 ```
