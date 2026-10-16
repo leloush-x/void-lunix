@@ -25,10 +25,9 @@ and the matugen fallback degrade to warnings when offline.
   and the install-log copy.
 - **Scenario B** (`dry_b.sh`) — UEFI + LUKS2 + Hyprland + greetd, mirroring
   `run_auto()`. Verifies ESP partitioning, `luksFormat`/`open`, mapper mount,
-  arch-aware UEFI GRUB (`arm64-efi` on aarch64, `x86_64-efi` on x86_64),
-  dracut crypt config, the greetd `dbus-run-session` wrapper,
-  Hyprland/Waybar/Wofi configs, and the Hyprland community-repo
-  enable/cleanup.
+  UEFI GRUB (`x86_64-efi`), dracut crypt config, the greetd
+  `dbus-run-session` wrapper, Hyprland/Waybar/Wofi configs, and the Hyprland
+  community-repo enable/cleanup.
 - **Scenario C** (`dry_wizard.sh`) — the interactive wizard (the default
   `voidc` path) driven without a terminal: a fake `dialog` in `/tmp/wizbin`
   consumes one answer line per prompt from `/tmp/wiz_answers.txt` and logs
@@ -39,10 +38,13 @@ and the matugen fallback degrade to warnings when offline.
   (hostname, chpasswd ×2, keymap `de`, locale, checklist services on/off),
   that exactly 30 dialogs and 2 gauges are used, and that the queue is
   drained (no prompt missed, none extra).
-- **`check_dry.sh`** — ~90 assertions over the produced target filesystems,
-  installer logs and stub-call logs. Arch/libc aware.
+- **`check_dry.sh`** — ~100 assertions over the produced target filesystems,
+  installer logs and stub-call logs (x86_64/musl aware).
 - **`matugen-fallback.sh`** — unit test for the GitHub release fallback
   (fake curl, no network): plain/musl asset preference and the no-asset skip.
+- **`fs-matrix.sh`** — unit test for the root-filesystem matrix: the exact
+  mkfs command per filesystem (ext4/btrfs/xfs/f2fs), the missing-tool hint,
+  and the generated fstab (root passno, tmpfs /tmp, swap line).
 
 ## Sandbox relaxations (only applied to the `/tmp/drysrc` copy)
 
@@ -51,17 +53,14 @@ and the matugen fallback degrade to warnings when offline.
 - `UEFI` detection is neutralized: scenario A always runs BIOS (CI runners
   boot UEFI) and scenario B sets `UEFI=yes` itself (no EFI firmware in a
   container).
-- Scenario A simulates BIOS on whatever arch the host is — on aarch64 the
-  early `check_firmware_support` guard is turned into a warning in the copy
-  (BIOS GRUB is x86-only, so this scenario is a simulation there).
 
 ## Notes
 
 - The dry runs call `enable_host_extra_repo()`, which writes **and removes**
   `/etc/xbps.d/30-repository-desktop.conf` on the running system.
-- The `xbps-uhelper` stub fails on purpose, so arch/libc detection falls back
-  to `uname -m` + the musl loader check — the same code path used on systems
-  without xbps. Expectations adapt to `uname -m` and glibc/musl.
+- The `xbps-uhelper` stub reports a pinned `TEST_ARCH` (x86_64, or
+  x86_64-musl inside the musl container), so the whole suite is deterministic
+  on any host.
 - Logs: `/tmp/dry_a.log`, `/tmp/dry_b.log`, `/tmp/dry_wizard.log`; stub calls:
   `/tmp/stub_a.log`, `/tmp/stub_b.log`, `/tmp/stub_w.log`; wizard dialog
   calls: `/tmp/wiz_dialogs.log`.
@@ -71,6 +70,5 @@ and the matugen fallback degrade to warnings when offline.
 GitHub Actions (`.github/workflows/tests.yml`) runs this suite on:
 
 - `ubuntu-latest` (x86_64 · glibc)
-- `ubuntu-24.04-arm` (aarch64 · glibc)
 - `voidlinux/voidlinux-musl` container (x86_64 · musl) — the musl job clones
   with `git` because `actions/checkout`'s Node.js runtime does not run on musl.

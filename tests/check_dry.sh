@@ -1,24 +1,17 @@
 #!/usr/bin/env bash
-# check_dry.sh — assertions over the two dry-run results.
-# Expectations adapt to the running machine (uname -m + musl loader), matching
-# what lib/detect.sh computes when xbps-uhelper is unavailable/stubbed.
-ARCH="$(uname -m)"
-LIBC=glibc
-if ls /lib/ld-musl-*.so.1 >/dev/null 2>&1; then
-  LIBC=musl
-  case "$ARCH" in *musl*) ;; *) ARCH="${ARCH}-musl" ;; esac
-fi
+# check_dry.sh — assertions over the dry-run results.
+# Expectations are pinned to x86_64 (TEST_ARCH, exported by run.sh) or
+# x86_64-musl inside the musl container — matching what lib/detect.sh
+# computes from the xbps-uhelper stub.
+ARCH="${TEST_ARCH:-x86_64}"
+LIBC=glibc; case "$ARCH" in *musl*) LIBC=musl ;; esac
 case "$ARCH" in
-  x86_64)      REPO_SEG="" ;;
   x86_64-musl) REPO_SEG="musl" ;;
-  *)           REPO_SEG="${ARCH%%-musl}" ;;
+  *)           REPO_SEG="" ;;
 esac
 MAIN_PATH="current"; [ -n "$REPO_SEG" ] && MAIN_PATH="current/$REPO_SEG"
 EXTRA_ARCH="${ARCH%-musl}"
-case "$ARCH" in
-  aarch64*) GRUB_TGT="arm64-efi";  GRUB_PKG="grub-arm64-efi" ;;
-  *)        GRUB_TGT="x86_64-efi"; GRUB_PKG="grub-x86_64-efi" ;;
-esac
+GRUB_TGT="x86_64-efi"; GRUB_PKG="grub-x86_64-efi"
 
 fail=0
 A=/tmp/drytarget
@@ -78,20 +71,15 @@ check "install log copied"       test -s "$A/var/log/voidc-install.log"
 check "log: i3-gaps fallback"    grep -q "i3-gaps' missing -> using 'i3'" /tmp/dry_a.log
 check "log: matugen pkg skipped" grep -q "skipped: matugen" /tmp/dry_a.log
 check "log: polkit-gnome skipped" grep -q "skipped: polkit-gnome" /tmp/dry_a.log
-if [ "$ARCH" = x86_64 ]; then
-  # network-dependent: the real GitHub release either installs, or the
-  # installer degrades gracefully when offline/rate-limited — the
-  # deterministic asset-selection logic is covered by matugen-fallback.sh
-  if [ -x "$A/usr/local/bin/matugen" ]; then
-    ok "matugen fallback installed (network)"
-  elif grep -q "could not resolve a matugen release asset" /tmp/dry_a.log; then
-    ok "matugen fallback gracefully skipped (offline/rate-limited)"
-  else
-    bad "matugen fallback neither installed nor gracefully skipped"
-  fi
+# network-dependent: the real GitHub release either installs, or the
+# installer degrades gracefully when offline/rate-limited — the
+# deterministic asset-selection logic is covered by matugen-fallback.sh
+if [ -x "$A/usr/local/bin/matugen" ]; then
+  ok "matugen fallback installed (network)"
+elif grep -q "could not resolve a matugen release asset" /tmp/dry_a.log; then
+  ok "matugen fallback gracefully skipped (offline/rate-limited)"
 else
-  check "matugen fallback skipped (no $ARCH asset)" \
-    grep -q "could not resolve a matugen release asset" /tmp/dry_a.log
+  bad "matugen fallback neither installed nor gracefully skipped"
 fi
 check "stub: wipefs"             grep -q "wipefs -a /tmp/fakedisk" /tmp/stub_a.log
 check "stub: gpt label"          grep -q "mklabel gpt" /tmp/stub_a.log
@@ -103,11 +91,19 @@ check "stub: mkfs.ext4 boot"     grep -q "mkfs.ext4 -q -L boot" /tmp/stub_a.log
 check "stub: mkfs.ext4 root"     grep -q "mkfs.ext4 -q -L voidroot /tmp/fakedisk4" /tmp/stub_a.log
 check "stub: mount root"         grep -q "mount /tmp/fakedisk4 /tmp/drytarget" /tmp/stub_a.log
 check "stub: mount /boot"        grep -q "mount /tmp/fakedisk2 /tmp/drytarget/boot" /tmp/stub_a.log
-check "no EFI grub pkg (BIOS)"   bash -c "! grep -qE 'grub-(x86_64-efi|arm64-efi)' /tmp/stub_a.log"
-check "chroot: useradd"          grep -q "useradd" /tmp/stub_a.log
+check "no EFI grub pkg (BIOS)"   bash -c "! grep -qE 'grub-(x86_64-efi|i386-efi)' /tmp/stub_a.log"
+check "chroot: useradd filtered" grep -q "useradd -m -U -G wheel,audio,video,kvm,cdrom -s /bin/bash void" /tmp/stub_a.log
+check "no unknown groups"        bash -c "! grep -qE 'useradd .*-G .*(network|storage|input|optical|xbuilder)' /tmp/stub_a.log"
 check "chroot: grub i386-pc"     grep -q "grub-install --target=i386-pc" /tmp/stub_a.log
 check "chroot: xbps-reconfigure" grep -q "xbps-reconfigure -fa" /tmp/stub_a.log
 check "xbps-install transaction" grep -q "xbps-install -Sy -y -r /tmp/drytarget" /tmp/stub_a.log
+check "base-files reconfigure"   grep -q "xbps-reconfigure -r /tmp/drytarget -f base-files" /tmp/stub_a.log
+check "chpasswd SHA512"          grep -q "chpasswd -c SHA512" /tmp/stub_a.log
+check "fstab tmpfs /tmp"         grep -q "tmpfs.*/tmp.*nosuid,nodev" "$A/etc/fstab"
+check "fstab root passno (ext4)" awk '$2=="/"{exit !($3=="ext4" && $6=="1")}' "$A/etc/fstab"
+if [ -d /var/db/xbps/keys ]; then
+  check "repo keys copied"       bash -c "ls '$A/var/db/xbps/keys' | grep -q ."
+fi
 
 echo "== scenario B (UEFI + LUKS2 + hyprland + greetd) =="
 check "fstab root ext4"          grep -q "^UUID=aaaaaaaa" "$B/etc/fstab"
@@ -137,12 +133,11 @@ check "stub: no mkswap (LUKS)"   bash -c "! grep -q mkswap /tmp/stub_b.log"
 check "stub: efivarfs mount"     grep -q "efivarfs" /tmp/stub_b.log
 check "pkg: $GRUB_PKG"           grep -q "$GRUB_PKG" /tmp/stub_b.log
 check "chroot: grub $GRUB_TGT"   grep -q "grub-install --target=$GRUB_TGT" /tmp/stub_b.log
-# the other arch's target must never be used (guards against a hardcode)
-if [ "$GRUB_TGT" = arm64-efi ]; then
-  check "no x86_64-efi leak"     bash -c "! grep -q 'target=x86_64-efi' /tmp/stub_b.log"
-else
-  check "no arm64-efi leak"      bash -c "! grep -q 'target=arm64-efi' /tmp/stub_b.log"
-fi
+check "grub bootloader-id"       grep -q -- "--bootloader-id=void_grub" /tmp/stub_b.log
+check "grub efi-directory"       grep -q -- "--efi-directory=/boot/efi" /tmp/stub_b.log
+# guards against a wrong/hardcoded EFI target
+check "no i386-efi leak"         bash -c "! grep -q 'target=i386-efi' /tmp/stub_b.log"
+check "fstab tmpfs /tmp (B)"     grep -q "tmpfs.*/tmp.*nosuid,nodev" "$B/etc/fstab"
 check "chroot: xbps-reconfigure" grep -q "xbps-reconfigure -fa" /tmp/stub_b.log
 check "xbps-install transaction" grep -q "xbps-install -Sy -y -r /tmp/drytarget_b" /tmp/stub_b.log
 

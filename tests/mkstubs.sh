@@ -14,6 +14,7 @@ EOF
 }
 
 for n in parted wipefs partprobe udevadm mkfs.vfat mkfs.ext4 mkfs.btrfs \
+         mkfs.xfs mkfs.f2fs \
          mkswap cryptsetup swapon swapoff mount umount modprobe efibootmgr \
          grub-install grub-mkconfig hwclock; do generic "$n"; done
 
@@ -34,8 +35,13 @@ exit 0
 EOF
 chmod 0755 "$D/blkid"
 
-# xbps-uhelper: fail so detect falls back to uname -m
-printf '#!/bin/sh\nexit 1\n' >"$D/xbps-uhelper"
+# xbps-uhelper: report the pinned test arch (x86_64 / x86_64-musl)
+cat >"$D/xbps-uhelper" <<'EOF'
+#!/bin/sh
+echo "xbps-uhelper $*" >> "${STUB_LOG:-/tmp/stub_calls.log}"
+printf '%s\n' "${TEST_ARCH:-x86_64}"
+exit 0
+EOF
 chmod 0755 "$D/xbps-uhelper"
 
 # xbps-query: exists unless the package is in $STUB_MISSING

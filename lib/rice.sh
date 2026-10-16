@@ -17,7 +17,6 @@ install_matugen() {
   local dl=""
   if command -v curl >/dev/null 2>&1; then
     local arch_pat="x86_64"
-    case "${XBPS_ARCH:-x86_64}" in aarch64*) arch_pat="aarch64" ;; esac
     local libc_pat="gnu"; [ "$LIBC" = musl ] && libc_pat="musl"
 
     # Asset names changed across releases ("matugen-4.2.0-x86_64.tar.gz",

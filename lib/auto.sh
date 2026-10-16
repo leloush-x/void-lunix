@@ -31,10 +31,16 @@ auto_defaults() {
 }
 
 auto_validate() {
-  check_firmware_support
   [ -n "${DISK:-}" ] || die "Profile error: DISK is required."
   [ -b "$DISK" ] || die "Not a block device: $DISK"
-  case "$FILESYSTEM" in ext4|btrfs) ;; *) die "FILESYSTEM must be ext4 or btrfs";; esac
+  case "$FILESYSTEM" in
+    ext4|btrfs|xfs|f2fs) ;;
+    *) die "FILESYSTEM must be ext4, btrfs, xfs or f2fs";;
+  esac
+  local fs_tool
+  fs_tool="$(fs_mkfs_cmd "$FILESYSTEM")"
+  command -v "$fs_tool" >/dev/null 2>&1 \
+    || die "FILESYSTEM=$FILESYSTEM needs '$fs_tool' on this live system (xbps-install -Sy $(fs_mkfs_pkg "$FILESYSTEM"))."
   printf '%s' "$HOSTNAME" | grep -qE '^[a-z0-9][a-z0-9-]*$' || die "Invalid HOSTNAME: $HOSTNAME"
   printf '%s' "$USERNAME" | grep -qE '^[a-z_][a-z0-9_-]*$' || die "Invalid USERNAME: $USERNAME"
   [ -n "${ROOT_PASS:-}" ] || die "Profile error: ROOT_PASS is required (unattended mode)."

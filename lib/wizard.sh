@@ -32,7 +32,6 @@ wizard_preflight() {
     fi
   fi
   detect_environment
-  check_firmware_support
 }
 
 step_welcome() {
@@ -60,9 +59,14 @@ step_disk() {
 }
 
 step_filesystem() {
-  FILESYSTEM="$(ui_menu "Root filesystem:" 12 60 2 \
-    "ext4"  "Battle-tested, safe default" \
-    "btrfs" "Snapshots, compression")" || wizard_abort
+  # offer only filesystems whose mkfs tool exists on the live system
+  local -a menu=()
+  command -v mkfs.ext4  >/dev/null 2>&1 && menu+=("ext4"  "Battle-tested, safe default")
+  command -v mkfs.btrfs >/dev/null 2>&1 && menu+=("btrfs" "Snapshots, compression")
+  command -v mkfs.xfs   >/dev/null 2>&1 && menu+=("xfs"   "XFS — mature, high throughput")
+  command -v mkfs.f2fs  >/dev/null 2>&1 && menu+=("f2fs"  "Flash-friendly — SSD/eMMC/SD")
+  [ "${#menu[@]}" -gt 0 ] || die "No mkfs tool found on this live system (need at least e2fsprogs)."
+  FILESYSTEM="$(ui_menu "Root filesystem:" 14 64 4 "${menu[@]}")" || wizard_abort
 }
 
 step_swap() {

@@ -18,6 +18,15 @@ else
   touch "$T/usr/share/zoneinfo/UTC"
 fi
 printf '#en_US.UTF-8 UTF-8\n' >"$T/etc/default/libc-locales"
+cat >"$T/etc/group" <<'EOF'
+root:x:0:
+wheel:x:10:
+floppy:x:11:
+cdrom:x:24:
+audio:x:28:
+kvm:x:97:
+video:x:986:
+EOF
 cat >"$T/etc/rc.conf" <<'EOF'
 # voidc dry-run skeleton
 KEYMAP="us"

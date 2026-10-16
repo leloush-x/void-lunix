@@ -15,18 +15,8 @@ permissions:
 
 jobs:
   dry-run:
-    name: sandbox dry run (${{ matrix.arch }} · ${{ matrix.libc }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            arch: x86_64
-            libc: glibc
-          - os: ubuntu-24.04-arm
-            arch: aarch64
-            libc: glibc
-    runs-on: ${{ matrix.os }}
+    name: sandbox dry run (x86_64 · glibc)
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5

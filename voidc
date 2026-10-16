@@ -3,7 +3,7 @@
 # Usage: voidc [--auto profile.conf] [--target /mnt] [--check] [--version]
 set -u
 
-VOIDC_VERSION="1.0.0"
+VOIDC_VERSION="1.1.0"
 VOIDC_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 : "${TARGET:=/mnt}"
 : "${LOGFILE:=/tmp/voidc-$(date +%Y%m%d-%H%M%S).log}"

@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 # voidc — environment detection: firmware, libc, CPU, RAM, disks, mirrors.
 
+# GRUB EFI target for the current machine: detection result when available,
+# otherwise derived from the arch (used when UEFI is forced in tests).
+efi_target() {
+  if [ -n "${EFI_TARGET:-}" ]; then
+    printf '%s\n' "$EFI_TARGET"
+    return
+  fi
+  printf 'x86_64-efi\n'
+}
+
 detect_environment() {
   # firmware
   UEFI=no
@@ -19,6 +29,21 @@ detect_environment() {
   XBPS_ARCH="$arch"
   LIBC=glibc
   case "$arch" in *musl*) LIBC=musl ;; esac
+  case "$arch" in
+    x86_64*) ;;
+    *) die "Unsupported architecture: $arch — voidc supports x86_64 only." ;;
+  esac
+
+  # UEFI: GRUB target triple. 32-bit x86 UEFI firmware is real (tablets,
+  # older Macs) and needs --target=i386-efi + grub-i386-efi.
+  EFI_TARGET=""
+  if [ "$UEFI" = yes ]; then
+    EFI_TARGET="x86_64-efi"
+    if [ -r /sys/firmware/efi/fw_platform_size ] && \
+       [ "$(cat /sys/firmware/efi/fw_platform_size 2>/dev/null)" = 32 ]; then
+      EFI_TARGET="i386-efi"
+    fi
+  fi
 
   # cpu microcode
   UCODE=()
@@ -30,24 +55,13 @@ detect_environment() {
   [ -n "$RAM_MB" ] || RAM_MB=4096
 
   # repository path segment: x86_64 is flat (/current), x86_64-musl lives
-  # under /current/musl, aarch64 (glibc and musl) under /current/aarch64
+  # under /current/musl
   case "$arch" in
-    x86_64)      REPO_SEG="" ;;
     x86_64-musl) REPO_SEG="musl" ;;
-    *)           REPO_SEG="${arch%%-musl}" ;;
+    *)           REPO_SEG="" ;;
   esac
 
-  verb "detected: uefi=$UEFI arch=$arch libc=$LIBC ram=${RAM_MB}MB ucode=${UCODE[*]:-none}"
-}
-
-# check_firmware_support — legacy BIOS boot is x86-only (GRUB i386-pc).
-# Fails early, before the disk is touched, instead of late at grub-install.
-check_firmware_support() {
-  [ "$UEFI" = no ] || return 0
-  case "${XBPS_ARCH:-x86_64}" in
-    x86_64*|i686*) return 0 ;;
-  esac
-  die "BIOS boot is not supported on ${XBPS_ARCH} — boot the installer in UEFI mode."
+  verb "detected: uefi=$UEFI${EFI_TARGET:+ ($EFI_TARGET)} arch=$arch libc=$LIBC ram=${RAM_MB}MB ucode=${UCODE[*]:-none}"
 }
 
 # list_disks -> lines "NAME SIZE MODEL"

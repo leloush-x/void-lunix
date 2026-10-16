@@ -10,7 +10,7 @@
 #   scenario C: the interactive wizard driven by a fake `dialog` and a
 #               scripted answer queue (typed hostname/user/passwords, menus,
 #               checklist, confirmations)
-#   then ~140 assertions + the matugen fallback unit test
+#   then ~150 assertions + the matugen fallback and filesystem matrix unit tests
 #
 # Sandbox relaxations (applied to the /tmp/drysrc copy only, never this repo):
 #   * [ -b "$DISK" ] -> [ -e "$DISK" ] because containers cannot create
@@ -25,15 +25,18 @@ set -eu
 SELF="$(cd -- "$(dirname -- "$0")" && pwd)"
 ROOT="$(dirname "$SELF")"
 
+# Tests pin the arch the installer sees via the xbps-uhelper stub: x86_64,
+# or x86_64-musl inside the musl container.
+TEST_ARCH="${TEST_ARCH:-x86_64}"
+if ls /lib/ld-musl-*.so.1 >/dev/null 2>&1; then TEST_ARCH=x86_64-musl; fi
+export TEST_ARCH
+
 echo "== sandbox copy -> /tmp/drysrc"
 rm -rf /tmp/drysrc
 cp -a "$ROOT" /tmp/drysrc
 rm -rf /tmp/drysrc/.git
 sed -i 's/\[ -b "\$DISK" \]/[ -e "$DISK" ]/' /tmp/drysrc/lib/auto.sh /tmp/drysrc/lib/partition.sh
 grep -q '\[ -e "\$DISK" \]' /tmp/drysrc/lib/partition.sh || { echo "sandbox patch failed"; exit 1; }
-# scenario A simulates BIOS on (possibly) aarch64 — skip the early firmware guard
-sed -i 's/die "BIOS boot is not supported/warnlog "SKIPPED in sandbox: BIOS boot is not supported/' /tmp/drysrc/lib/detect.sh
-grep -q 'warnlog "SKIPPED in sandbox: BIOS boot' /tmp/drysrc/lib/detect.sh || { echo "sandbox patch failed (firmware guard)"; exit 1; }
 # scenario A must run BIOS even on UEFI machines (CI runners boot UEFI); B sets UEFI=yes itself
 sed -i 's|\[ -d /sys/firmware/efi \] && UEFI=yes|UEFI=no  # sandbox: force BIOS for scenario A|' /tmp/drysrc/lib/detect.sh
 grep -q 'UEFI=no  # sandbox: force BIOS' /tmp/drysrc/lib/detect.sh || { echo "sandbox patch failed (force BIOS)"; exit 1; }
@@ -52,6 +55,9 @@ bash "$SELF/check_dry.sh" || exit 1
 
 echo "== matugen release-fallback unit test"
 bash "$SELF/matugen-fallback.sh" || exit 1
+
+echo "== root filesystem matrix unit test"
+bash "$SELF/fs-matrix.sh" || exit 1
 
 echo
 echo "ALL TESTS PASSED"

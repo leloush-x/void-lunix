@@ -73,6 +73,14 @@ prepare_target() {
     verb "extra repository in target: $extra_url"
   fi
 
+  # repository signing keys (xbps imports them on first sync too; copying the
+  # live ones is belt & braces, same as the official void-installer does)
+  if [ -d /var/db/xbps/keys ]; then
+    mkdir -p "$TARGET/var/db/xbps/keys"
+    cp -a /var/db/xbps/keys/. "$TARGET/var/db/xbps/keys/" 2>/dev/null || true
+    verb "repo keys copied into target"
+  fi
+
   # DNS for chroot configuration stage
   run "Copying resolv.conf" cp -L /etc/resolv.conf "$TARGET/etc/resolv.conf"
   verb "target prepared (mirror: $base_url)"
@@ -100,7 +108,9 @@ build_pkg_list() {
 
   if [ "$UEFI" = yes ]; then
     local efi_grub="grub-x86_64-efi"
-    case "${XBPS_ARCH:-x86_64}" in aarch64*) efi_grub="grub-arm64-efi" ;; esac
+    case "$(efi_target)" in
+      i386-efi) efi_grub="grub-i386-efi" ;;
+    esac
     out+=" grub $efi_grub efibootmgr"
   else
     out+=" grub"
@@ -147,5 +157,10 @@ install_packages() {
 
   [ -x "$TARGET/usr/bin/xbps-install" ] || [ -x "$TARGET/usr/bin/xbps-query" ] \
     || die "Base system does not look installed under $TARGET."
+
+  # base-files' INSTALL script fixes ownership/permissions for -r installs
+  # (the official void-installer does the same before entering the chroot)
+  try xbps-reconfigure -r "$TARGET" -f base-files
+
   verb "package installation complete"
 }

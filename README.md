@@ -29,7 +29,7 @@ package transaction.
   before install; missing ones are skipped with a warning and known renames
   (`i3-gaps` → `i3`) are applied automatically.
 - **Automatic microcode + firmware** (intel/amd-ucode, linux-firmware).
-- **Filesystems**: ext4 or btrfs, optional swap, optional **LUKS2** root.
+- **Filesystems**: ext4, btrfs, XFS or F2FS, optional swap, optional **LUKS2** root.
 - **Bootloader**: GRUB for UEFI and BIOS, generated for your layout.
 - **User setup**: sudo/wheel user, services enabled (dbus, elogind,
   NetworkManager, rtkit), keyboard for console + X.
@@ -98,7 +98,7 @@ and scenario C (the interactive wizard driven through a fake `dialog` with a
 scripted answer queue — typed hostname/passwords, menus, checklist), then
 ~140 assertions over the produced target, installer logs and stub calls, plus
 a unit test for the matugen release fallback. Details: `tests/README.md`.
-CI runs it on x86_64 + aarch64 (glibc) and x86_64 (musl).
+CI runs it on x86_64 (glibc) and x86_64 (musl).
 
 ## Ricing presets
 
@@ -166,8 +166,8 @@ tests/                sandboxed end-to-end dry run (tests/run.sh)
 - **Hyprland** is not packaged in Void, so voidc installs it from the
   **hyprland-void** community repo (github.com/Makrennel/hyprland-void). When
   you pick Hyprland it enables that repo on the live system *and* in the
-  installed system — with the right branch for your arch/libc
-  (x86_64/aarch64 × glibc/musl) — so `hyprland`, `hyprpaper`, `hypridle`,
+  installed system — with the right branch for your libc
+  (x86_64 × glibc/musl) — so `hyprland`, `hyprpaper`, `hypridle`,
   `hyprlock` and `xdg-desktop-portal-hyprland` install normally. This is
   third-party software not shipped by Void: use it only if you trust it.
 - **Hyprland seat errors**: if Hyprland reports a seat/DRM permission error,
@@ -176,12 +176,13 @@ tests/                sandboxed end-to-end dry run (tests/run.sh)
 - **Package names are verified against the live Void index** before install
   (`Waybar` is capital-W in Void, for example) and missing packages are
   skipped with a warning — no half-broken transactions. The mirror probe and
-  repo paths also handle musl/aarch64 layouts (`/current/musl`,
-  `/current/aarch64`, `x86_64-musl-repodata`).
-- **Bootloader is arch-aware**: UEFI installs use `grub-x86_64-efi` /
-  `grub-arm64-efi` with the matching `grub-install --target`; legacy BIOS
-  (GRUB i386-pc) is x86-only — on aarch64 the installer stops early and asks
-  you to boot the medium in UEFI mode.
+  repo paths also handle the musl layout (`/current/musl`,
+  `x86_64-musl-repodata`).
+- **Bootloader is firmware-aware**: UEFI installs use `grub-x86_64-efi` and
+  `--target=x86_64-efi` (or `grub-i386-efi` / `i386-efi` on 32-bit UEFI
+  firmware); legacy BIOS uses GRUB i386-pc.
+- **x86_64 only**: the architecture is checked up front; unsupported systems
+  stop early with a clear message.
 - **matugen** installs from the Void repos in the main transaction. If it is
   ever missing there, the installer falls back to the latest prebuilt GitHub
   release binary (`/usr/local/bin`) with arch/libc-aware asset matching, and

@@ -18,7 +18,7 @@ mount_chroot() {
 }
 
 set_password() { # set_password <user> <password>  (via stdin, never argv)
-  printf '%s:%s\n' "$1" "$2" | chroot "$TARGET" chpasswd >>"$LOGFILE" 2>&1 \
+  printf '%s:%s\n' "$1" "$2" | chroot "$TARGET" chpasswd -c SHA512 >>"$LOGFILE" 2>&1 \
     || die "Failed to set password for $1"
   verb "password set for $1"
 }
@@ -77,7 +77,15 @@ write_timezone() {
 }
 
 create_users() {
-  chroot_run "useradd -m -U -G wheel,audio,video,network,input,storage,optical -s /bin/bash $USERNAME"
+  # keep only groups that exist in the target — an unknown group makes
+  # useradd fail entirely, and group sets differ between systems
+  local g grp_ok=""
+  for g in wheel audio video input storage network optical kvm cdrom users; do
+    grep -q "^$g:" "$TARGET/etc/group" 2>/dev/null && grp_ok+="$g,"
+  done
+  grp_ok="${grp_ok%,}"
+  [ -n "$grp_ok" ] || grp_ok="wheel"
+  chroot_run "useradd -m -U -G $grp_ok -s /bin/bash $USERNAME"
   chroot_run "passwd -l root >/dev/null 2>&1 || true"
   set_password root "$ROOT_PASS"
   set_password "$USERNAME" "$USER_PASS"

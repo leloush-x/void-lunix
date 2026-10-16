@@ -19,13 +19,13 @@ install_bootloader() {
   sed -i -E 's|^#?GRUB_TIMEOUT=.*|GRUB_TIMEOUT=5|' "$grubdef" || true
   verb "grub cmdline: $cmdline"
 
-  local grub_target="x86_64-efi"
-  case "${XBPS_ARCH:-x86_64}" in aarch64*) grub_target="arm64-efi" ;; esac
+  local grub_target
+  grub_target="$(efi_target)"
 
   if [ "$UEFI" = yes ]; then
     say "Installing GRUB (UEFI, $grub_target)"
     if ! chroot "$TARGET" grub-install --target="$grub_target" --efi-directory=/boot/efi \
-         --bootloader-id=void --recheck >>"$LOGFILE" 2>&1; then
+         --bootloader-id=void_grub --recheck >>"$LOGFILE" 2>&1; then
       warnlog "standard grub-install failed, retrying with --removable"
       chroot "$TARGET" grub-install --target="$grub_target" --efi-directory=/boot/efi \
         --removable --recheck >>"$LOGFILE" 2>&1 \

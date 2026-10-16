@@ -91,7 +91,7 @@ ok
 any
 /tmp/fakedisk
 /tmp/fakedisk
-ext4
+xfs
 4096
 no
 wizbox
@@ -124,16 +124,11 @@ rc=$?
 echo "DRY_WIZARD_EXIT=$rc"
 
 # ------------------------------------------------------------ assertions ----
-ARCH="$(uname -m)"
-LIBC=glibc
-if ls /lib/ld-musl-*.so.1 >/dev/null 2>&1; then
-  LIBC=musl
-  case "$ARCH" in *musl*) ;; *) ARCH="${ARCH}-musl" ;; esac
-fi
+ARCH="${TEST_ARCH:-x86_64}"
+LIBC=glibc; case "$ARCH" in *musl*) LIBC=musl ;; esac
 case "$ARCH" in
-  x86_64)      REPO_SEG="" ;;
   x86_64-musl) REPO_SEG="musl" ;;
-  *)           REPO_SEG="${ARCH%%-musl}" ;;
+  *)           REPO_SEG="" ;;
 esac
 MAIN_PATH="current"; [ -n "$REPO_SEG" ] && MAIN_PATH="current/$REPO_SEG"
 U=wizard
@@ -156,13 +151,15 @@ check "no desync in stderr"     bash -c "! grep -q 'answer queue EMPTY' /tmp/dry
 check "dialog calls == 30"      test "$(wc -l <"$WIZ_DLG_LOG")" -eq 30
 check "2 gauges ran"            test "$(grep -c '^gauge' "$WIZ_DLG_LOG")" -eq 2
 check "hostname typed"          grep -qx "wizbox" "$W/etc/hostname"
-check "username typed"          grep -q "useradd.*$U" "$STUB_LOG"
-check "chpasswd ran x2"         test "$(grep -c 'chpasswd' "$STUB_LOG")" -eq 2
+check "useradd filtered groups" grep -q "useradd -m -U -G wheel,audio,video,kvm,cdrom -s /bin/bash $U" "$STUB_LOG"
+check "chpasswd SHA512 x2"      test "$(grep -c 'chpasswd -c SHA512' "$STUB_LOG")" -eq 2
 check "log: password root"      grep -q "password set for root" /tmp/dry_wizard.log
 check "log: password user"      grep -q "password set for $U" /tmp/dry_wizard.log
 check "sudoers wheel"           grep -q "%wheel" "$W/etc/sudoers.d/10-wheel"
 check "bash_profile autostart"  grep -q "exec startx" "$W/home/$U/.bash_profile"
-check "fstab root UUID+ext4"    grep -q "^UUID=aaaaaaaa" "$W/etc/fstab"
+check "fstab root UUID+xfs"     grep -q "^UUID=aaaaaaaa" "$W/etc/fstab"
+check "fstab root xfs passno0"  awk '$2=="/"{exit !($3=="xfs" && $5=="0" && $6=="0")}' "$W/etc/fstab"
+check "fstab tmpfs /tmp"        grep -q "tmpfs.*/tmp.*nosuid,nodev" "$W/etc/fstab"
 check "fstab /boot"             grep -q "/boot" "$W/etc/fstab"
 check "fstab swap"              grep -q "swap" "$W/etc/fstab"
 check "fstab no efi (BIOS)"     bash -c "! grep -q efi '$W/etc/fstab'"
@@ -202,7 +199,7 @@ check "stub: bios_grub"         grep -q "bios_grub" "$STUB_LOG"
 check "stub: no ESP (BIOS)"     bash -c "! grep -q 'mkpart ESP' '$STUB_LOG'"
 check "stub: mkswap swap 4096"  grep -q "mkswap -L swap /tmp/fakedisk3" "$STUB_LOG"
 check "stub: no cryptsetup"     bash -c "! grep -q cryptsetup '$STUB_LOG'"
-check "stub: mkfs.ext4 root"    grep -q "mkfs.ext4 -q -L voidroot /tmp/fakedisk4" "$STUB_LOG"
+check "stub: mkfs.xfs root"     grep -q "mkfs.xfs -f -i sparse=0 -L voidroot /tmp/fakedisk4" "$STUB_LOG"
 check "stub: mount root"        grep -q "mount /tmp/fakedisk4 /tmp/drytarget_w" "$STUB_LOG"
 check "stub: mount /boot"       grep -q "mount /tmp/fakedisk2 /tmp/drytarget_w/boot" "$STUB_LOG"
 check "grub i386-pc"            grep -q "grub-install --target=i386-pc" "$STUB_LOG"
