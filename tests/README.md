@@ -52,3 +52,12 @@ and the matugen fallback degrade to warnings when offline.
   without xbps. Expectations adapt to `uname -m` and glibc/musl.
 - Logs: `/tmp/dry_a.log`, `/tmp/dry_b.log`; stub calls: `/tmp/stub_a.log`,
   `/tmp/stub_b.log`.
+
+## CI
+
+GitHub Actions (`.github/workflows/tests.yml`) runs this suite on:
+
+- `ubuntu-latest` (x86_64 · glibc)
+- `ubuntu-24.04-arm` (aarch64 · glibc)
+- `voidlinux/voidlinux-musl` container (x86_64 · musl) — the musl job clones
+  with `git` because `actions/checkout`'s Node.js runtime does not run on musl.

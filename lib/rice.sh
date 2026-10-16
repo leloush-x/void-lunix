@@ -35,12 +35,11 @@ install_matugen() {
       case "$base" in *"$arch_pat"*) assets="${assets}${url}"$'\n' ;; esac
     done <<< "$urls"
     if [ "$libc_pat" = musl ]; then
+      # never install a non-musl build on musl — it cannot run
       dl="$(printf '%s' "$assets" | grep -i musl | head -n1 || true)"
     else
       dl="$(printf '%s' "$assets" | grep -i -v musl | head -n1 || true)"
-    fi
-    if [ -z "$dl" ]; then
-      dl="$(printf '%s' "$assets" | head -n1 || true)"
+      [ -n "$dl" ] || dl="$(printf '%s' "$assets" | head -n1 || true)"
     fi
   fi
 

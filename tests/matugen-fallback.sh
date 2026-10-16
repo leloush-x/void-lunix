@@ -6,6 +6,7 @@
 #   * x86_64/musl prefers a musl asset when one exists
 #   * x86_64/glibc prefers a non-musl asset when both exist
 #   * glibc accepts a musl-only release as a last resort
+#   * musl skips when the release has no musl build (a glibc binary cannot run)
 #   * aarch64 skips when the release has no aarch64 asset
 set -u
 ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
@@ -96,6 +97,7 @@ run_case() { # <name> <arch> <libc> <json> <expect: marker|SKIP>
 echo "== matugen release-fallback selection =="
 run_case "x86_64/glibc picks plain x86_64"  x86_64  glibc "$W/x86-only.json"   PLAIN-BUILD
 run_case "x86_64/musl prefers musl build"   x86_64  musl  "$W/x86-mixed.json"  MUSL-BUILD
+run_case "x86_64/musl skips without musl"   x86_64  musl  "$W/x86-only.json"   SKIP
 run_case "x86_64/glibc prefers non-musl"    x86_64  glibc "$W/x86-mixed.json"  PLAIN-BUILD
 run_case "glibc accepts musl-only release"  x86_64  glibc "$W/musl-only.json" MUSL-BUILD
 run_case "aarch64 skipped (no asset)"       aarch64 glibc "$W/x86-only.json"   SKIP

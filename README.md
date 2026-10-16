@@ -96,7 +96,7 @@ Runs the whole install pipeline against stubbed system commands: scenario A
 (BIOS + ext4 + i3 + greetd + extras) and scenario B (UEFI + LUKS2 + Hyprland),
 then ~90 assertions over the produced target, installer logs and stub calls,
 plus a unit test for the matugen release fallback. Details:
-`tests/README.md`.
+`tests/README.md`. CI runs it on x86_64 + aarch64 (glibc) and x86_64 (musl).
 
 ## Ricing presets
 

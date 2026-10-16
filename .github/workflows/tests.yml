@@ -1,0 +1,47 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    name: sandbox dry run (${{ matrix.arch }} · ${{ matrix.libc }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+            libc: glibc
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+            libc: glibc
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run sandboxed installer test suite
+        run: sudo bash tests/run.sh
+
+  musl:
+    name: sandbox dry run (x86_64 · musl)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: voidlinux/voidlinux-musl:latest
+    steps:
+      - name: Install test tools
+        run: xbps-install -Sy bash curl git
+      - name: Clone (actions/checkout's node runtime does not run on musl)
+        run: git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" .
+      - name: Run sandboxed installer test suite
+        run: bash tests/run.sh
