@@ -87,14 +87,22 @@ create_users() {
     >"$TARGET/etc/sudoers.d/10-wheel"
   chmod 0440 "$TARGET/etc/sudoers.d/10-wheel"
   chmod 0750 "$TARGET/etc/sudoers.d" 2>/dev/null || true
-  if [ "${AUTOSTART_X:-no}" = yes ] && desktop_uses_startx; then
-    cat >>"$TARGET/home/$USERNAME/.bash_profile" <<'EOF'
+  if [ "${AUTOSTART_DESKTOP:-no}" = yes ]; then
+    local acmd=""
+    if desktop_uses_startx; then
+      acmd="startx"
+    elif desktop_uses_wayland; then
+      acmd="dbus-run-session -- $(desktop_session_cmd)"
+    fi
+    if [ -n "$acmd" ]; then
+      cat >>"$TARGET/home/$USERNAME/.bash_profile" <<EOF
 
-# auto-start X on tty1 (added by voidc)
-if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-    exec startx
+# auto-start desktop on tty1 (added by voidc)
+if [ -z "\$DISPLAY" ] && [ -z "\$WAYLAND_DISPLAY" ] && [ "\$(tty)" = "/dev/tty1" ]; then
+    exec $acmd
 fi
 EOF
+    fi
   fi
   chroot_run "chown -R $USERNAME:$USERNAME /home/$USERNAME"
   verb "user $USERNAME created"
@@ -136,9 +144,27 @@ enable_system_services() {
   in_list printing "$EXTRAS" && enable_service cupsd
   enable_service chronyd 2>/dev/null || true
 
-  local dm; dm="$(desktop_dm_service || true)"
-  [ -n "$dm" ] && enable_service "$dm"
+  local dm; dm="$(effective_dm)"
+  if [ -n "$dm" ]; then
+    enable_service "$dm"
+    [ "$dm" = greetd ] && write_greetd_config
+  fi
   verb "services enabled"
+}
+
+write_greetd_config() {
+  local cmd; cmd="$(desktop_session_cmd)"
+  mkdir -p "$TARGET/etc/greetd"
+  cat >"$TARGET/etc/greetd/config.toml" <<EOF
+[terminal]
+vt = 1
+
+[default_session]
+command = "tuigreet --time --remember --user-menu --asterisks --cmd $cmd"
+user = "greeter"
+EOF
+  chroot_try "mkdir -p /var/cache/tuigreet && chown greeter:greeter /var/cache/tuigreet"
+  verb "greetd configured (session cmd: $cmd)"
 }
 
 write_dracut_conf() {

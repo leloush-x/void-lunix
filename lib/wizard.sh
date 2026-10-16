@@ -119,20 +119,43 @@ step_identity() {
   fi
 }
 
+step_session() {
+  SESSION="$(ui_menu "Which session stack?" 15 70 3 \
+    "any"     "Show everything (X11 + Wayland)" \
+    "x11"     "X11 only — i3, bspwm, Xfce, KDE, ..." \
+    "wayland" "Wayland only — Hyprland, Sway, River, ...")" || wizard_abort
+}
+
 step_desktop() {
-  DESKTOP="$(ui_menu "Choose your desktop / window manager:" 21 76 12 \
-    "i3"      "i3 + polybar/rofi/picom/dunst — ricing ready (recommended)" \
-    "bspwm"   "bspwm + sxhkd, same ricing stack" \
-    "dwm"     "Minimal suckless dwm + dmenu" \
-    "openbox" "Openbox + tint2" \
-    "sway"    "Wayland: sway + waybar" \
-    "xfce"    "Xfce 4 (lightweight full DE)" \
-    "kde"     "KDE Plasma" \
-    "gnome"   "GNOME" \
-    "cinnamon" "Cinnamon" \
-    "mate"    "MATE" \
-    "none"    "Base system only (configure later)" \
-    "custom"  "Custom package list")" || wizard_abort
+  local -a menu=()
+  local entry tag desc
+  for entry in \
+    "i3|i3 + polybar/rofi/picom/dunst — ricing preset (recommended)" \
+    "bspwm|bspwm + sxhkd — ricing preset" \
+    "dwm|suckless dwm + dmenu" \
+    "openbox|Openbox + tint2" \
+    "awesome|AwesomeWM (Lua)" \
+    "qtile|Qtile (Python)" \
+    "xfce|Xfce 4 (lightweight full DE)" \
+    "lxqt|LXQt (Qt, light)" \
+    "mate|MATE" \
+    "cinnamon|Cinnamon" \
+    "budgie|Budgie" \
+    "kde|KDE Plasma" \
+    "gnome|GNOME" \
+    "niri|niri — scrolling Wayland preset (recommended)" \
+    "sway|Sway — i3-like Wayland preset" \
+    "river|River (Wayland, minimal)" \
+    "wayfire|Wayfire (Wayland, desktop-like)" \
+    "labwc|Labwc (Wayland, Openbox-like)" \
+    "none|Base system only (configure later)" \
+    "custom|Custom package list"
+  do
+    tag="${entry%%|*}"; desc="${entry#*|}"
+    desktop_allowed "$tag" && menu+=("$tag" "$desc")
+  done
+
+  DESKTOP="$(ui_menu "Choose your desktop / window manager (stack: $SESSION):" 22 78 18 "${menu[@]}")" || wizard_abort
   if [ "$DESKTOP" = custom ]; then
     CUSTOM_PKGS="$(ui_input "Space-separated package list:" 10 74 "xorg xinit i3 alacritty")" || wizard_abort
   fi
@@ -154,19 +177,38 @@ step_extras() {
   sel="$(ui_check "Extra options:" 18 74 9 "${items[@]}")" || wizard_abort
   EXTRAS=" $(printf '%s' "$sel" | tr -d '"') "
 
-  # startx autostart for lightweight WM desktops
-  AUTOSTART_X=no
-  case "$DESKTOP" in
-    i3|bspwm|dwm|openbox)
-      ui_yesno "Auto-start $DESKTOP on tty1 login?" 8 60 && AUTOSTART_X=yes
-      ;;
-  esac
+  # autostart on tty1 (X11 via startx, Wayland via compositor)
+  AUTOSTART_DESKTOP=no
+  if [ "$DESKTOP" != none ] && ui_yesno "Auto-start $DESKTOP on tty1 login?" 8 60; then
+    AUTOSTART_DESKTOP=yes
+  fi
 
   DOTFILES_URL=""
   if ui_yesno "Clone a dotfiles repo into ~/.dotfiles?" 8 60; then
     DOTFILES_URL="$(ui_input "Git URL of your dotfiles repo:" 9 74 "https://github.com/user/dotfiles")" || wizard_abort
     ui_yesno "Run the dotfiles install script too?" 8 60 && RUN_DOTFILES_INSTALL=yes || RUN_DOTFILES_INSTALL=no
   fi
+}
+
+step_advanced() {
+  GPU_DRIVER="$(ui_menu "GPU drivers (advanced):" 16 74 5 \
+    "auto"   "Mesa only — safe default for Intel/AMD" \
+    "intel"  "Intel: VA-API + Vulkan drivers" \
+    "amd"    "AMD: VA-API + Vulkan (RADV)" \
+    "nvidia" "NVIDIA proprietary (enables nonfree repo)" \
+    "none"   "Install nothing extra")" || wizard_abort
+  if [ "$GPU_DRIVER" = nvidia ] && ! in_list nonfree "$EXTRAS"; then
+    EXTRAS+=" nonfree"
+    [ "${NO_DIALOG:-no}" = yes ] || ui_msg "nonfree repo enabled automatically for NVIDIA." 8 60
+  fi
+
+  LOGIN_MANAGER="$(ui_menu "Login manager (advanced):" 17 76 6 \
+    "auto"    "Per desktop (DEs get their DM, WMs start from tty)" \
+    "none"    "No display manager (startx / start manually)" \
+    "lightdm" "LightDM (X11, lightweight)" \
+    "sddm"    "SDDM (Qt, X11 + Wayland sessions)" \
+    "gdm"     "GDM (GNOME, X11 + Wayland)" \
+    "greetd"  "greetd + tuigreet (text greeter, Wayland-friendly)")" || wizard_abort
 }
 
 step_mirror() {
@@ -193,6 +235,8 @@ wizard_summary() {
   local luks_txt="no" swap_txt="none"
   [ "$LUKS" = yes ] && luks_txt="yes (LUKS2)"
   [ "$SWAP_MB" -gt 0 ] && swap_txt="${SWAP_MB} MiB"
+  local dm_txt; dm_txt="$(effective_dm)"
+  [ -n "$dm_txt" ] || dm_txt="none (tty)"
   ui_msg "Installation summary
 ------------------------------------------
 Disk:       $DISK  [$([ "$UEFI" = yes ] && echo UEFI || echo BIOS)]
@@ -204,10 +248,12 @@ Hostname:   $HOSTNAME
 User:       $USERNAME   (wheel/sudo)
 Timezone:   $TIMEZONE    Locale: $LOCALE    Keymap: $KEYMAP
 
+Session:    $SESSION stack
 Desktop:    $DESKTOP
+Login:      $dm_txt   GPU: $GPU_DRIVER
 Extras:    $EXTRAS
 
-$DISK WILL BE COMPLETELY ERASED." 26 78
+$DISK WILL BE COMPLETELY ERASED." 27 78
   ui_yesno "Start the installation now?" 8 50 || die "Aborted before installation."
 }
 
@@ -241,8 +287,13 @@ Log:        /var/log/voidc-install.log
 "
   if desktop_uses_startx; then
     msg+="Log in as $USERNAME and run:  startx\n"
-    [ "$AUTOSTART_X" = yes ] && msg+="(X starts automatically on tty1)\n"
+    [ "$AUTOSTART_DESKTOP" = yes ] && msg+="(X starts automatically on tty1)\n"
+  elif desktop_uses_wayland; then
+    msg+="Log in as $USERNAME and run:  $(desktop_session_cmd)\n"
+    [ "$AUTOSTART_DESKTOP" = yes ] && msg+="(Wayland session starts automatically on tty1)\n"
   fi
+  local dm; dm="$(effective_dm)"
+  [ -n "$dm" ] && msg+="Display manager: $dm\n"
   ui_msg "$msg" 16 64
 
   if ui_yesno "Unmount everything and reboot now?" 8 60; then
@@ -258,6 +309,7 @@ run_wizard() {
   trap wizard_abort INT
   wizard_preflight
   step_welcome
+  step_session
   step_disk
   step_filesystem
   step_swap
@@ -265,6 +317,7 @@ run_wizard() {
   step_identity
   step_desktop
   step_extras
+  step_advanced
   step_mirror
   wizard_summary
   if ! ( wizard_run_install ); then

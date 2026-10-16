@@ -433,8 +433,11 @@ desktop_setup() {
   desktop_uses_rice && {
     install_wallpaper
     case "$DESKTOP" in
-      i3)    gen_i3 ;;
-      bspwm) gen_bspwm ;;
+      i3)       gen_i3 ;;
+      bspwm)    gen_bspwm ;;
+      hyprland) gen_hyprland ;;
+      sway)     gen_sway ;;
+      niri)     gen_niri ;;
     esac
     install_matugen
   }

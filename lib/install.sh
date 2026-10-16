@@ -5,7 +5,7 @@
 # Fallback map: if key is missing from the repos, use value instead.
 declare -A PKG_FALLBACK=(
   [i3-gaps]=i3
-  [network-manager-applet]=network-manager-applet
+  [waybar]=Waybar
   [pipewire-pulse]=pipewire
   [vsv]=runit
 )
@@ -54,6 +54,8 @@ extras_pkgs() {
 build_pkg_list() {
   local out="base-system sudo dbus elogind polkit"
   out+=" $(desktop_pkgs)"
+  out+=" $(desktop_dm_pkgs)"
+  out+=" $(gpu_pkgs)"
   out+=" $(extras_pkgs)"
   out+=" ${UCODE[*]:-}"
 

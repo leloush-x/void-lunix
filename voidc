@@ -26,6 +26,8 @@ export VOIDC_VERSION VOIDC_DIR TARGET LOGFILE
 . "$VOIDC_DIR/lib/boot.sh"
 # shellcheck source=lib/rice.sh
 . "$VOIDC_DIR/lib/rice.sh"
+# shellcheck source=lib/rice-wayland.sh
+. "$VOIDC_DIR/lib/rice-wayland.sh"
 # shellcheck source=lib/wizard.sh
 . "$VOIDC_DIR/lib/wizard.sh"
 # shellcheck source=lib/auto.sh

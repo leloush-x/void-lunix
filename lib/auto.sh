@@ -8,18 +8,25 @@ auto_defaults() {
   : "${TIMEZONE:=UTC}"
   : "${KEYMAP:=us}"
   : "${LOCALE:=en_US.UTF-8}"
+  : "${SESSION:=any}"
   : "${DESKTOP:=i3}"
   : "${CUSTOM_PKGS:=}"
   : "${EXTRAS:=audio networking fonts nonfree}"
+  : "${GPU_DRIVER:=auto}"
+  : "${LOGIN_MANAGER:=auto}"
   : "${LUKS:=no}"
   : "${LUKS_PASSWORD:=}"
   : "${SWAP_MB:=auto}"
-  : "${AUTOSTART_X:=no}"
+  : "${AUTOSTART_DESKTOP:=${AUTOSTART_X:-no}}"
   : "${MIRROR:=auto}"
   : "${DOTFILES_URL:=}"
   : "${RUN_DOTFILES_INSTALL:=no}"
   if [ "$LIBC" = glibc ] && ! in_list multilib "$EXTRAS"; then
     EXTRAS+=" multilib"
+  fi
+  if desktop_needs_nonfree && ! in_list nonfree "$EXTRAS"; then
+    EXTRAS+=" nonfree"
+    warnlog "nvidia selected: nonfree repo enabled"
   fi
 }
 
@@ -39,9 +46,16 @@ auto_validate() {
     if [ "$RAM_MB" -lt 4096 ]; then SWAP_MB="$RAM_MB"; else SWAP_MB=4096; fi
   fi
   case "$DESKTOP" in
-    none|i3|bspwm|dwm|openbox|sway|xfce|kde|gnome|cinnamon|mate|custom) ;;
+    none|i3|bspwm|dwm|openbox|awesome|qtile|xfce|lxqt|mate|cinnamon|budgie|kde|gnome|sway|niri|hyprland|river|wayfire|labwc|custom) ;;
     *) die "Unknown DESKTOP: $DESKTOP";;
   esac
+  if [ "$DESKTOP" = hyprland ]; then
+    warnlog "Hyprland is not packaged in Void: packages will be skipped; this only makes sense for a manual source build."
+  fi
+  case "$SESSION" in any|x11|wayland) ;; *) die "SESSION must be any|x11|wayland";; esac
+  desktop_allowed "$DESKTOP" || die "DESKTOP=$DESKTOP is not available in SESSION=$SESSION (use SESSION=any)."
+  case "$GPU_DRIVER" in auto|none|intel|amd|nvidia) ;; *) die "GPU_DRIVER must be auto|none|intel|amd|nvidia";; esac
+  case "$LOGIN_MANAGER" in auto|none|lightdm|sddm|gdm|greetd) ;; *) die "LOGIN_MANAGER must be auto|none|lightdm|sddm|gdm|greetd";; esac
   [ "$DESKTOP" = custom ] && [ -z "$CUSTOM_PKGS" ] && die "DESKTOP=custom requires CUSTOM_PKGS."
 }
 
@@ -87,7 +101,9 @@ run_auto() {
   sync
 
   say "Installation complete"
-  note "Desktop: $DESKTOP   User: $USERNAME"
-  desktop_uses_startx && note "Log in and run: startx"
+  note "Desktop: $DESKTOP ($SESSION stack)   User: $USERNAME"
+  if desktop_uses_startx; then note "Log in and run: startx"
+  elif desktop_uses_wayland; then note "Log in and run: $(desktop_session_cmd)"
+  fi
   note "Target mounted at $TARGET — reboot when ready (log: $LOGFILE)"
 }
