@@ -23,6 +23,7 @@ auto_defaults() {
   : "${RUN_DOTFILES_INSTALL:=no}"
   if [ "$XBPS_ARCH" = x86_64 ] && ! in_list multilib "$EXTRAS"; then
     EXTRAS+=" multilib"
+    warnlog "x86_64 glibc: multilib repo enabled automatically"
   fi
   if desktop_needs_nonfree && ! in_list nonfree "$EXTRAS"; then
     EXTRAS+=" nonfree"
@@ -92,11 +93,14 @@ run_auto() {
   auto_resolve_mirror
 
   say "Unattended install: $DISK -> $FILESYSTEM, desktop=$DESKTOP"
+  # extra repos on, then package check — BEFORE the disk is touched
+  # (a missing critical package aborts with the disk still intact)
+  enable_host_extra_repo
+  resolve_pkgs
   partition_disk
   format_partitions
   mount_target
   prepare_target
-  resolve_pkgs
   install_packages
   mount_chroot
   write_fstab

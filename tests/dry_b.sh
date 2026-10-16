@@ -11,7 +11,8 @@ export VOIDC_DIR=/tmp/drysrc VOIDC_VERSION=test LOGFILE=/tmp/dry_b.log
 export STUB_LOG=/tmp/stub_b.log STUB_MISSING="hyprlock"
 : >"$STUB_LOG"; : >"$LOGFILE"
 export PATH=/tmp/stubbin:$PATH
-rm -f /etc/xbps.d/30-repository-desktop.conf
+rm -f /etc/xbps.d/30-repository-desktop.conf /etc/xbps.d/20-repository-nonfree.conf \
+      /etc/xbps.d/20-repository-multilib.conf
 rm -f /tmp/fakedisk; : >/tmp/fakedisk
 bash "$SELF/mkskel.sh" /tmp/drytarget_b >/dev/null
 
@@ -50,11 +51,12 @@ auto_defaults
 auto_validate
 
 say "DRY-B: $DISK -> $FILESYSTEM desktop=$DESKTOP uefi=$UEFI luks=$LUKS swap=${SWAP_MB}MB"
+enable_host_extra_repo
+resolve_pkgs
 partition_disk
 format_partitions
 mount_target
 prepare_target
-resolve_pkgs
 install_packages
 mount_chroot
 write_fstab
@@ -64,5 +66,8 @@ install_bootloader
 desktop_setup
 run "Saving install log" cp "$LOGFILE" "$TARGET/var/log/voidc-install.log"
 disable_host_extra_repo
+for f in 30-repository-desktop.conf 20-repository-nonfree.conf 20-repository-multilib.conf; do
+  if [ -e "/etc/xbps.d/$f" ]; then echo "HOST REPO LEAK: /etc/xbps.d/$f" >&2; exit 1; fi
+done
 sync
 echo "DRY_B_REACHED_END"

@@ -18,6 +18,8 @@ note() { printf '    %s\n' "$*" >&2; }
 die() {
   printf '\n\033[1;31m!! %s\033[0m\n   Log: %s\n' "$*" "$LOGFILE" >&2
   log "FATAL: $*"
+  # drop live-system repo confs voidc may have added (install.sh provides this)
+  if declare -F disable_host_extra_repo >/dev/null; then disable_host_extra_repo; fi
   exit 1
 }
 

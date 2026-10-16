@@ -11,17 +11,32 @@ declare -A PKG_FALLBACK=(
   [vsv]=runit
 )
 
-# Third-party repos a desktop may need (e.g. Hyprland's community repo) are
-# enabled on the live system (remote index + install transaction) and written
-# into the target. The live copy is removed when the install finishes.
+# Extra repos (nonfree, multilib and third-party ones like Hyprland's) are
+# enabled on the live system before the package check and the install
+# transaction, and written into the target. Every file added here is removed
+# again when the install finishes — or when it aborts.
 DESKTOP_EXTRA_CONF="30-repository-desktop.conf"
+HOST_REPO_FILES=""
+
+host_repo_add() { # host_repo_add <filename> <url>
+  mkdir -p /etc/xbps.d
+  printf 'repository=%s\n' "$2" >"/etc/xbps.d/$1"
+  HOST_REPO_FILES+=" $1"
+}
 
 enable_host_extra_repo() {
-  local url
+  local base_url url
+  base_url="$(repo_url "$MIRROR")"
+  if in_list nonfree "$EXTRAS"; then
+    host_repo_add 20-repository-nonfree.conf "$base_url/nonfree"
+    verb "nonfree repository enabled on live system"
+  fi
+  if in_list multilib "$EXTRAS" && [ "${XBPS_ARCH:-x86_64}" = x86_64 ]; then
+    host_repo_add 20-repository-multilib.conf "$base_url/multilib"
+    verb "multilib repository enabled on live system"
+  fi
   if url="$(desktop_extra_repo_url)"; then
-    mkdir -p /etc/xbps.d
-    printf 'repository=%s\n' "$url" >"/etc/xbps.d/$DESKTOP_EXTRA_CONF"
-    HOST_EXTRA_REPO_ADDED=yes
+    host_repo_add "$DESKTOP_EXTRA_CONF" "$url"
     verb "extra repository enabled on live system: $url"
     # early, actionable warning if the third-party repo is unreachable
     if command -v curl >/dev/null 2>&1 && \
@@ -33,20 +48,16 @@ enable_host_extra_repo() {
 }
 
 disable_host_extra_repo() {
-  if [ "${HOST_EXTRA_REPO_ADDED:-no}" = yes ]; then
-    rm -f "/etc/xbps.d/$DESKTOP_EXTRA_CONF"
-    HOST_EXTRA_REPO_ADDED=no
-  fi
+  local f
+  for f in ${HOST_REPO_FILES:-}; do rm -f "/etc/xbps.d/$f"; done
+  HOST_REPO_FILES=""
 }
 
 prepare_target() {
   run "Creating target directories" mkdir -p "$TARGET/etc/xbps.d" "$TARGET/var/db/xbps" "$TARGET/dev" "$TARGET/proc" "$TARGET/sys" "$TARGET/run"
 
-  # desktop-specific third-party repo (enabled before the host config is
-  # copied below, so the copy loop carries it into the target too)
-  enable_host_extra_repo
-
-  # repository configuration (skip lines pointing at live-media/local repos)
+  # repository configuration (host confs added earlier — nonfree, multilib,
+  # desktop extra repo — are copied along; skip live-media/local repos)
   local f base
   for f in /etc/xbps.d/*.conf; do
     [ -e "$f" ] || continue
@@ -143,6 +154,17 @@ resolve_pkgs() {
       PKGS_SKIPPED+="$pkg "
     fi
   done
+
+  # packages the installed system cannot boot without: never skip silently
+  local c critical="base-system grub"
+  [ "$UEFI" = yes ] && critical+=" efibootmgr"
+  [ "$LUKS" = yes ] && critical+=" cryptsetup"
+  for c in $critical; do
+    case " $PKGS_SKIPPED " in
+      *" $c "*) die "Critical package '$c' is missing from the repositories — install aborted." ;;
+    esac
+  done
+
   # dedup (fallbacks may duplicate)
   PKGS="$(printf '%s\n' $PKGS | sort -u | tr '\n' ' ')"
   verb "resolved packages: $PKGS"

@@ -3,6 +3,7 @@
 
 install_bootloader() {
   local cmdline="loglevel=4"
+  [ "${GPU_DRIVER:-}" = nvidia ] && cmdline+=" nvidia_drm.modeset=1"
   if [ "$LUKS" = yes ]; then
     local luks_uuid; luks_uuid="$(uuid_of "$LUKSDEV")"
     [ -n "$luks_uuid" ] || die "Could not read LUKS UUID from $LUKSDEV"

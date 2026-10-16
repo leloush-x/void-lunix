@@ -100,18 +100,24 @@ mkfs_root() {
 }
 
 format_partitions() {
+  # old RAID/LVM/LUKS signatures can survive at the same offsets as the new
+  # partitions — clear every device before formatting it
   if [ -n "${ESPDEV:-}" ]; then
+    run "Clearing old signatures on $ESPDEV" wipefs -a "$ESPDEV"
     run "Creating FAT32 on $ESPDEV" mkfs.vfat -F32 -n EFI "$ESPDEV"
   fi
   if [ -n "${BOOTDEV:-}" ]; then
+    run "Clearing old signatures on $BOOTDEV" wipefs -a "$BOOTDEV"
     run "Creating ext4 on $BOOTDEV" mkfs.ext4 -q -L boot "$BOOTDEV"
   fi
   if [ -n "${SWAPDEV:-}" ]; then
+    run "Clearing old signatures on $SWAPDEV" wipefs -a "$SWAPDEV"
     run "Creating swap on $SWAPDEV" mkswap -L swap "$SWAPDEV"
   fi
 
   if [ "$LUKS" = yes ]; then
     [ -n "${LUKS_PASSWORD:-}" ] || die "LUKS enabled but no passphrase set."
+    run "Clearing old signatures on $LUKSDEV" wipefs -a "$LUKSDEV"
     verb "LuksFormat $LUKSDEV (luks2)"
     printf '%s' "$LUKS_PASSWORD" | cryptsetup luksFormat --type luks2 --batch-mode --key-file - "$LUKSDEV" >>"$LOGFILE" 2>&1 \
       || die "cryptsetup luksFormat failed on $LUKSDEV (see $LOGFILE)"
@@ -119,6 +125,7 @@ format_partitions() {
       || die "cryptsetup open failed on $LUKSDEV"
     ROOTDEV_FS="/dev/mapper/$CRYPT_NAME"
   else
+    run "Clearing old signatures on $ROOTDEV" wipefs -a "$ROOTDEV"
     ROOTDEV_FS="$ROOTDEV"
   fi
 

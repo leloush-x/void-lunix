@@ -49,23 +49,25 @@ write_locale() {
 }
 
 write_keymap() {
-  printf 'KEYMAP="%s"\n' "$KEYMAP" >"$TARGET/etc/voidc-keymap.conf"
   local rc="$TARGET/etc/rc.conf"
   if [ -f "$rc" ]; then
     sed -i -E "s|^#?KEYMAP=.*|KEYMAP=\"$KEYMAP\"|"            "$rc"
     sed -i -E "s|^#?HARDWARECLOCK=.*|HARDWARECLOCK=\"UTC\"|"   "$rc"
     sed -i -E "s|^#?TIMEZONE=.*|TIMEZONE=\"$TIMEZONE\"|"       "$rc"
   fi
+  # console keymap names differ from XKB layouts (uk vs gb, de-latin1 vs de):
+  # strip the console suffix and translate the common ones
+  local xkb="${KEYMAP%%-*}"
+  [ "$xkb" = uk ] && xkb=gb
   mkdir -p "$TARGET/etc/X11/xorg.conf.d"
   cat >"$TARGET/etc/X11/xorg.conf.d/00-keyboard.conf" <<EOF
 Section "InputClass"
     Identifier "system-keyboard"
     MatchIsKeyboard "on"
-    Option "XkbLayout" "$KEYMAP"
+    Option "XkbLayout" "$xkb"
 EndSection
 EOF
-  rm -f "$TARGET/etc/voidc-keymap.conf"
-  verb "keymap configured: $KEYMAP"
+  verb "keymap configured: $KEYMAP (X11: $xkb)"
 }
 
 write_timezone() {
@@ -86,7 +88,6 @@ create_users() {
   grp_ok="${grp_ok%,}"
   [ -n "$grp_ok" ] || grp_ok="wheel"
   chroot_run "useradd -m -U -G $grp_ok -s /bin/bash $USERNAME"
-  chroot_run "passwd -l root >/dev/null 2>&1 || true"
   set_password root "$ROOT_PASS"
   set_password "$USERNAME" "$USER_PASS"
 

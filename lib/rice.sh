@@ -447,6 +447,19 @@ EOF
   verb "bspwm configs generated"
 }
 
+# every X desktop needs ~/.xinitrc or startx falls back to the twm/xterm
+# session; the rice presets write their own — fill the gap for plain desktops
+ensure_xinitrc() {
+  desktop_uses_startx || return 0
+  local home="$TARGET/home/$USERNAME" cmd
+  [ -e "$home/.xinitrc" ] && return 0
+  cmd="$(desktop_x_cmd)" || return 0
+  printf '#!/bin/sh\n# written by voidc\nexec dbus-run-session -- %s\n' "$cmd" >"$home/.xinitrc"
+  chmod 0755 "$home/.xinitrc"
+  chroot_run "chown $USERNAME:$USERNAME /home/$USERNAME/.xinitrc"
+  verb "wrote .xinitrc for $DESKTOP: $cmd"
+}
+
 desktop_setup() {
   [ "$DESKTOP" = none ] && return 0
   desktop_uses_rice && {
@@ -461,6 +474,7 @@ desktop_setup() {
     install_matugen
   }
   desktop_uses_rice && chroot_run "chown -R $USERNAME:$USERNAME /home/$USERNAME"
+  ensure_xinitrc
   clone_dotfiles
   chroot_try "su -l $USERNAME -c 'xdg-user-dirs-update'"
   verb "desktop setup complete"

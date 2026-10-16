@@ -38,13 +38,24 @@ and the matugen fallback degrade to warnings when offline.
   (hostname, chpasswd ×2, keymap `de`, locale, checklist services on/off),
   that exactly 30 dialogs and 2 gauges are used, and that the queue is
   drained (no prompt missed, none extra).
-- **`check_dry.sh`** — ~100 assertions over the produced target filesystems,
-  installer logs and stub-call logs (x86_64/musl aware).
+- **Scenario D** (`dry_fail.sh`) — a critical package (`grub`) missing from
+  the repositories must abort the install *before* the disk is touched:
+  non-zero exit, a clear log message, no partitioning/transaction calls in the
+  stub log, and the host repo conf added by `enable_host_extra_repo()` is
+  cleaned up on the abort path.
+- **`check_dry.sh`** — ~120 assertions over the produced target filesystems,
+  installer logs and stub-call logs (x86_64/musl aware), including per-device
+  `wipefs` before every `mkfs`, the host repo conf lifecycle, and that the root
+  account is never `passwd -l`-locked behind the set password.
 - **`matugen-fallback.sh`** — unit test for the GitHub release fallback
   (fake curl, no network): plain/musl asset preference and the no-asset skip.
 - **`fs-matrix.sh`** — unit test for the root-filesystem matrix: the exact
   mkfs command per filesystem (ext4/btrfs/xfs/f2fs), the missing-tool hint,
   and the generated fstab (root passno, tmpfs /tmp, swap line).
+- **`xinitrc.sh`** — unit test for `~/.xinitrc` generation: every plain X
+  desktop (dwm/openbox/awesome/qtile/xfce, no rice preset) gets a session
+  file, Wayland desktops do not, and an existing `.xinitrc` (rice preset or
+  user dotfiles) is never overwritten.
 
 ## Sandbox relaxations (only applied to the `/tmp/drysrc` copy)
 
@@ -56,14 +67,16 @@ and the matugen fallback degrade to warnings when offline.
 
 ## Notes
 
-- The dry runs call `enable_host_extra_repo()`, which writes **and removes**
-  `/etc/xbps.d/30-repository-desktop.conf` on the running system.
+- The dry runs call `enable_host_extra_repo()`, which writes **and always
+  removes** host repo confs in `/etc/xbps.d` (`30-repository-desktop.conf`,
+  `20-repository-nonfree.conf`, `20-repository-multilib.conf`) — including on
+  the abort path (scenario D).
 - The `xbps-uhelper` stub reports a pinned `TEST_ARCH` (x86_64, or
   x86_64-musl inside the musl container), so the whole suite is deterministic
   on any host.
-- Logs: `/tmp/dry_a.log`, `/tmp/dry_b.log`, `/tmp/dry_wizard.log`; stub calls:
-  `/tmp/stub_a.log`, `/tmp/stub_b.log`, `/tmp/stub_w.log`; wizard dialog
-  calls: `/tmp/wiz_dialogs.log`.
+- Logs: `/tmp/dry_a.log`, `/tmp/dry_b.log`, `/tmp/dry_wizard.log`, `/tmp/dry_fail.log`;
+  stub calls: `/tmp/stub_a.log`, `/tmp/stub_b.log`, `/tmp/stub_w.log`,
+  `/tmp/stub_f.log`; wizard dialog calls: `/tmp/wiz_dialogs.log`.
 
 ## CI
 

@@ -63,6 +63,25 @@ desktop_uses_startx() {
   case " $X11_ONLY " in *" $DESKTOP "*) return 0 ;; esac
   return 1
 }
+
+# command run inside ~/.xinitrc (startx reads it) for X desktops
+desktop_x_cmd() {
+  case "$DESKTOP" in
+    i3)       printf 'i3\n' ;;
+    bspwm)    printf 'bspwm\n' ;;
+    dwm)      printf 'dwm\n' ;;
+    openbox)  printf 'openbox-session\n' ;;
+    awesome)  printf 'awesome\n' ;;
+    qtile)    printf 'qtile start\n' ;;
+    xfce)     printf 'startxfce4\n' ;;
+    lxqt)     printf 'startlxqt\n' ;;
+    mate)     printf 'mate-session\n' ;;
+    cinnamon) printf 'cinnamon-session\n' ;;
+    budgie)   printf 'budgie-desktop\n' ;;
+    *) return 1 ;;
+  esac
+}
+
 desktop_uses_wayland() {
   case " $WAYLAND_ONLY " in *" $DESKTOP "*) return 0 ;; esac
   return 1

@@ -39,10 +39,14 @@ check_line "main repo conf" "$A/etc/xbps.d/00-repository-main.conf" \
 check "nonfree repo conf"        grep -q "nonfree" "$A/etc/xbps.d/20-repository-nonfree.conf"
 if [ "$ARCH" = x86_64 ]; then
   check "multilib repo conf"     grep -q "multilib" "$A/etc/xbps.d/20-repository-multilib.conf"
+  check "log: host multilib enabled" grep -q "multilib repository enabled on live system" /tmp/dry_a.log
+  check "host multilib conf removed" bash -c "! test -e /etc/xbps.d/20-repository-multilib.conf"
 else
   check "multilib skipped ($ARCH)" bash -c "! test -e '$A/etc/xbps.d/20-repository-multilib.conf'"
 fi
 check "no desktop extra conf"    bash -c "! test -e '$A/etc/xbps.d/30-repository-desktop.conf'"
+check "log: host nonfree enabled" grep -q "nonfree repository enabled on live system" /tmp/dry_a.log
+check "host nonfree conf removed" bash -c "! test -e /etc/xbps.d/20-repository-nonfree.conf"
 check "rc.conf keymap"           grep -q 'KEYMAP="us"' "$A/etc/rc.conf"
 if [ "$LIBC" = glibc ]; then
   check "locale.conf"            grep -q "LANG=en_US.UTF-8" "$A/etc/locale.conf"
@@ -82,6 +86,9 @@ else
   bad "matugen fallback neither installed nor gracefully skipped"
 fi
 check "stub: wipefs"             grep -q "wipefs -a /tmp/fakedisk" /tmp/stub_a.log
+check "stub: wipefs boot part"   grep -q "wipefs -a /tmp/fakedisk2" /tmp/stub_a.log
+check "stub: wipefs swap part"   grep -q "wipefs -a /tmp/fakedisk3" /tmp/stub_a.log
+check "stub: wipefs root part"   grep -q "wipefs -a /tmp/fakedisk4" /tmp/stub_a.log
 check "stub: gpt label"          grep -q "mklabel gpt" /tmp/stub_a.log
 check "stub: bios_grub"          grep -q "bios_grub" /tmp/stub_a.log
 check "stub: no ESP (BIOS)"      bash -c "! grep -q 'mkpart ESP' /tmp/stub_a.log"
@@ -99,6 +106,7 @@ check "chroot: xbps-reconfigure" grep -q "xbps-reconfigure -fa" /tmp/stub_a.log
 check "xbps-install transaction" grep -q "xbps-install -Sy -y -r /tmp/drytarget" /tmp/stub_a.log
 check "base-files reconfigure"   grep -q "xbps-reconfigure -r /tmp/drytarget -f base-files" /tmp/stub_a.log
 check "chpasswd SHA512"          grep -q "chpasswd -c SHA512" /tmp/stub_a.log
+check "no root lock"             bash -c "! grep -q 'passwd -l' /tmp/stub_a.log"
 check "fstab tmpfs /tmp"         grep -q "tmpfs.*/tmp.*nosuid,nodev" "$A/etc/fstab"
 check "fstab root passno (ext4)" awk '$2=="/"{exit !($3=="ext4" && $6=="1")}' "$A/etc/fstab"
 if [ -d /var/db/xbps/keys ]; then
@@ -125,6 +133,9 @@ check "log: matugen via repo"    grep -q "matugen already installed (repo)" /tmp
 check "stub: ESP mkpart"         grep -q "mkpart ESP" /tmp/stub_b.log
 check "stub: esp flag"           grep -q "set 1 esp on" /tmp/stub_b.log
 check "stub: mkfs.vfat"          grep -q "mkfs.vfat -F32" /tmp/stub_b.log
+check "stub: wipefs ESP part"    grep -q "wipefs -a /tmp/fakedisk1" /tmp/stub_b.log
+check "stub: wipefs boot part"   grep -q "wipefs -a /tmp/fakedisk2" /tmp/stub_b.log
+check "stub: wipefs luks part"   grep -q "wipefs -a /tmp/fakedisk3" /tmp/stub_b.log
 check "stub: luksFormat luks2"   grep -q "luksFormat --type luks2" /tmp/stub_b.log
 check "stub: cryptsetup open"    grep -q "cryptsetup open" /tmp/stub_b.log
 check "stub: mkfs mapper root"   grep -q "mkfs.ext4 -q -L voidroot /dev/mapper/cryptroot" /tmp/stub_b.log

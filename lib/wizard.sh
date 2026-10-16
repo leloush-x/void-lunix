@@ -13,6 +13,7 @@ Fast, clean text-based installer for Void Linux.
 wizard_abort() {
   local rc=$?
   printf '\n\033[1;33mInstallation cancelled.\033[0m\n' >&2
+  if declare -F disable_host_extra_repo >/dev/null; then disable_host_extra_repo; fi
   exit "$rc"
 }
 
@@ -90,7 +91,12 @@ step_luks() {
   LUKS=no
   if ui_yesno "Encrypt the root filesystem with LUKS?\n\nYou will type this passphrase at every boot." 10 62; then
     LUKS=yes
-    LUKS_PASSWORD="$(ask_password_twice "LUKS passphrase" || wizard_abort)"
+    # re-prompt on ESC/short/mismatch (same loop as the login passwords):
+    # an empty passphrase here would silently skip encryption
+    LUKS_PASSWORD=""
+    while [ -z "$LUKS_PASSWORD" ]; do
+      LUKS_PASSWORD="$(ask_password_twice "LUKS passphrase" || true)"
+    done
     if [ "$SWAP_MB" -gt 0 ]; then
       ui_msg "Swap will be skipped (encrypted root + plain swap is not offered)." 8 60
       SWAP_MB=0
@@ -332,11 +338,14 @@ $DISK WILL BE COMPLETELY ERASED." 27 78
 
 wizard_run_install() {
   say "=== installation started ==="
+  # extra repos on, then package check — BEFORE the disk is touched
+  # (a missing critical package aborts with the disk still intact)
+  enable_host_extra_repo
+  resolve_pkgs
   partition_disk
   format_partitions
   mount_target
   prepare_target
-  resolve_pkgs
   install_packages
   mount_chroot
   write_fstab

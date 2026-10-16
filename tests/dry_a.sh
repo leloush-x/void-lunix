@@ -7,7 +7,8 @@ SELF="$(cd -- "$(dirname -- "$0")" && pwd)"
 export PATH=/tmp/stubbin:$PATH
 export STUB_LOG=/tmp/stub_a.log STUB_MISSING="i3-gaps polkit-gnome matugen"
 : >"$STUB_LOG"
-rm -f /etc/xbps.d/30-repository-desktop.conf /tmp/dry_a.log
+rm -f /etc/xbps.d/30-repository-desktop.conf /etc/xbps.d/20-repository-nonfree.conf \
+      /etc/xbps.d/20-repository-multilib.conf /tmp/dry_a.log
 rm -f /tmp/fakedisk; : >/tmp/fakedisk
 bash "$SELF/mkskel.sh" /tmp/drytarget >/dev/null
 
@@ -35,4 +36,10 @@ LOGFILE=/tmp/dry_a.log STUB_LOG="$STUB_LOG" STUB_MISSING="$STUB_MISSING" \
   bash /tmp/drysrc/voidc --target /tmp/drytarget --auto /tmp/prof_a.conf
 rc=$?
 echo "DRY_A_EXIT=$rc"
+# the live-system repo confs voidc added must be gone after a successful run
+if [ "$rc" = 0 ]; then
+  for f in 30-repository-desktop.conf 20-repository-nonfree.conf 20-repository-multilib.conf; do
+    if [ -e "/etc/xbps.d/$f" ]; then echo "HOST REPO LEAK: /etc/xbps.d/$f" >&2; rc=1; fi
+  done
+fi
 exit "$rc"

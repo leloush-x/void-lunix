@@ -26,8 +26,11 @@ package transaction.
 - **Fast installs** — all packages in a *single* `xbps-install` transaction,
   automatic fastest-mirror detection, no needless reconfiguration passes.
 - **Smarter package handling** — packages are checked against the repo index
-  before install; missing ones are skipped with a warning and known renames
-  (`i3-gaps` → `i3`) are applied automatically.
+  (with nonfree/multilib enabled first, so nothing is missed) before install;
+  missing ones are skipped with a warning and known renames (`i3-gaps` → `i3`)
+  are applied automatically. Critical packages (`base-system`, `grub`,
+  `efibootmgr`, `cryptsetup`) hard-fail the install instead — before the disk
+  is touched — rather than yield an unbootable system.
 - **Automatic microcode + firmware** (intel/amd-ucode, linux-firmware).
 - **Filesystems**: ext4, btrfs, XFS or F2FS, optional swap, optional **LUKS2** root.
 - **Bootloader**: GRUB for UEFI and BIOS, generated for your layout.
@@ -40,6 +43,9 @@ package transaction.
 - **Ricing presets**: i3 + polybar and Hyprland/niri/Sway + Waybar (plus rofi/wofi,
   picom, dunst/mako, alacritty/foot), a wallpaper, and **matugen**
   (repo → prebuilt release binary fallback).
+- **Startx-ready X sessions** — plain X desktops (dwm, openbox, awesome, qtile,
+  …) get a generated `~/.xinitrc`, so `startx` and the greetd wrapper never
+  drop you into the default twm/xterm session.
 - **Dotfiles**: optionally clone your dotfiles repo (and run its installer).
 
 ## Quick start (Void live ISO)
@@ -189,14 +195,17 @@ tests/                sandboxed end-to-end dry run (tests/run.sh)
   release binary (`/usr/local/bin`) with arch/libc-aware asset matching, and
   skips it gracefully if neither source works.
 - **NVIDIA**: choosing the NVIDIA driver enables the nonfree repo and installs
-  `nvidia` + Vulkan; on Wayland/Hyprland you may need kernel params
-  (`nvidia_drm.modeset=1 nvidia_drm.fbdev=1`) — see the Void docs.
+  `nvidia` + Vulkan (plus `nvidia-libs-32bit` via multilib on glibc). voidc
+  adds `nvidia_drm.modeset=1` to the kernel command line automatically;
+  `nvidia_drm.fbdev=1` can further help on some systems — see the Void docs.
 - **greetd**: `tuigreet` reads available sessions (F3) and remembers your
   username; the cache directory is created automatically.
 - **Wayland sessions** pull in XWayland so X11 apps keep working.
 - **LUKS**: only the root filesystem is encrypted; `/boot` stays unencrypted
   (single passphrase prompt at boot). Swap is disabled when LUKS is on.
 - **BIOS installs** create a 1 MiB `bios_grub` partition for GRUB.
+- **Every device is `wipefs`-cleaned** — the disk and each new partition —
+  before formatting, so leftover RAID/LVM/LUKS signatures can't survive.
 - Target is mounted at `/mnt` by default (`--target` to change it).
 - Full logs: `/tmp/voidc-*.log` on the live medium, copied to
   `/var/log/voidc-install.log` on the installed system.
