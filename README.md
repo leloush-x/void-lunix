@@ -96,8 +96,9 @@ Runs the whole install pipeline against stubbed system commands: scenario A
 (BIOS + ext4 + i3 + greetd + extras), scenario B (UEFI + LUKS2 + Hyprland)
 and scenario C (the interactive wizard driven through a fake `dialog` with a
 scripted answer queue — typed hostname/passwords, menus, checklist), then
-~140 assertions over the produced target, installer logs and stub calls, plus
-a unit test for the matugen release fallback. Details: `tests/README.md`.
+~150 assertions over the produced target, installer logs and stub calls, plus
+a unit test for the matugen release fallback and one for the root-filesystem
+matrix. Details: `tests/README.md`.
 CI runs it on x86_64 (glibc) and x86_64 (musl).
 
 ## Ricing presets
