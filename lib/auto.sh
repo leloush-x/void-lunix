@@ -84,6 +84,8 @@ run_auto() {
   local cfg="$1"
   [ -f "$cfg" ] || die "Profile not found: $cfg"
 
+  # read by the shared ui helpers (common.sh) and the wizard
+  # shellcheck disable=SC2034
   NO_DIALOG=yes
   # shellcheck disable=SC1090
   . "$cfg"

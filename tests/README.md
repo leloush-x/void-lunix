@@ -12,7 +12,9 @@ tests/run.sh
 ```
 
 Requirements: bash, coreutils, tar, curl. Network is optional — repo probes
-and the matugen fallback degrade to warnings when offline.
+and the matugen fallback degrade to warnings when offline. ShellCheck is
+optional locally (the step is skipped when it's not in `PATH`) and always
+installed in CI.
 
 ## What is covered
 
@@ -43,6 +45,11 @@ and the matugen fallback degrade to warnings when offline.
   non-zero exit, a clear log message, no partitioning/transaction calls in the
   stub log, and the host repo conf added by `enable_host_extra_repo()` is
   cleaned up on the abort path.
+- **Scenario E** (`dry_nvidia.sh`) — `GPU_DRIVER=nvidia` through the real
+  `voidc --auto` pipeline: nonfree is auto-enabled (with a log line), the
+  driver packages land in the single transaction, multilib is enabled on
+  glibc only, and the generated GRUB cmdline contains
+  `nvidia_drm.modeset=1`.
 - **`check_dry.sh`** — ~120 assertions over the produced target filesystems,
   installer logs and stub-call logs (x86_64/musl aware), including per-device
   `wipefs` before every `mkfs`, the host repo conf lifecycle, and that the root
@@ -56,6 +63,18 @@ and the matugen fallback degrade to warnings when offline.
   desktop (dwm/openbox/awesome/qtile/xfce, no rice preset) gets a session
   file, Wayland desktops do not, and an existing `.xinitrc` (rice preset or
   user dotfiles) is never overwritten.
+- **`units.sh`** — unit tests for: console keymap → XKB translation
+  (`uk`→`gb`, `de-latin1`→`de`), the LUKS passphrase re-prompt loop (two
+  cancels, then a real passphrase; swap disabled), the host repo conf
+  lifecycle (nonfree/multilib URLs for glibc and musl, Hyprland repo conf,
+  cleanup — confs go to a temp dir via `HOST_XBPS_DIR`), and every shipped
+  profile (parses and declares `DISK`).
+- **`smoke.sh`** — CLI surface: `--version`/`--help` exit 0 with the right
+  output, unknown flags exit non-zero, and `--check` produces the environment
+  report.
+- **`shellcheck.sh`** — ShellCheck (warning level) over `voidc`, `lib/*.sh`
+  and `tests/*.sh`; `run.sh` runs it automatically when ShellCheck is
+  installed (CI always has it).
 
 ## Sandbox relaxations (only applied to the `/tmp/drysrc` copy)
 
@@ -74,9 +93,10 @@ and the matugen fallback degrade to warnings when offline.
 - The `xbps-uhelper` stub reports a pinned `TEST_ARCH` (x86_64, or
   x86_64-musl inside the musl container), so the whole suite is deterministic
   on any host.
-- Logs: `/tmp/dry_a.log`, `/tmp/dry_b.log`, `/tmp/dry_wizard.log`, `/tmp/dry_fail.log`;
-  stub calls: `/tmp/stub_a.log`, `/tmp/stub_b.log`, `/tmp/stub_w.log`,
-  `/tmp/stub_f.log`; wizard dialog calls: `/tmp/wiz_dialogs.log`.
+- Logs: `/tmp/dry_a.log`, `/tmp/dry_b.log`, `/tmp/dry_wizard.log`,
+  `/tmp/dry_fail.log`, `/tmp/dry_e.log`; stub calls: `/tmp/stub_a.log`,
+  `/tmp/stub_b.log`, `/tmp/stub_w.log`, `/tmp/stub_f.log`, `/tmp/stub_e.log`;
+  wizard dialog calls: `/tmp/wiz_dialogs.log`.
 
 ## CI
 
@@ -85,3 +105,6 @@ GitHub Actions (`.github/workflows/tests.yml`) runs this suite on:
 - `ubuntu-latest` (x86_64 · glibc)
 - `voidlinux/voidlinux-musl` container (x86_64 · musl) — the musl job clones
   with `git` because `actions/checkout`'s Node.js runtime does not run on musl.
+
+Both jobs run ShellCheck (preinstalled on the Ubuntu runner, installed via
+`xbps` inside the musl container) before the sandbox suite.

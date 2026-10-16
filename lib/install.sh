@@ -17,10 +17,12 @@ declare -A PKG_FALLBACK=(
 # again when the install finishes — or when it aborts.
 DESKTOP_EXTRA_CONF="30-repository-desktop.conf"
 HOST_REPO_FILES=""
+# live-system repo conf directory (overridable so unit tests can run unprivileged)
+HOST_XBPS_DIR="${HOST_XBPS_DIR:-/etc/xbps.d}"
 
 host_repo_add() { # host_repo_add <filename> <url>
-  mkdir -p /etc/xbps.d
-  printf 'repository=%s\n' "$2" >"/etc/xbps.d/$1"
+  mkdir -p "$HOST_XBPS_DIR"
+  printf 'repository=%s\n' "$2" >"$HOST_XBPS_DIR/$1"
   HOST_REPO_FILES+=" $1"
 }
 
@@ -49,7 +51,7 @@ enable_host_extra_repo() {
 
 disable_host_extra_repo() {
   local f
-  for f in ${HOST_REPO_FILES:-}; do rm -f "/etc/xbps.d/$f"; done
+  for f in ${HOST_REPO_FILES:-}; do rm -f "$HOST_XBPS_DIR/$f"; done
   HOST_REPO_FILES=""
 }
 
@@ -141,7 +143,7 @@ resolve_pkgs() {
   say "Syncing package index"
   run "Syncing xbps index" xbps-install -S
 
-  local pkg alt
+  local pkg
   PKGS=""; PKGS_SKIPPED=""
   for pkg in $requested; do
     if pkg_exists_remote "$pkg"; then

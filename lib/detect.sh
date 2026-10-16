@@ -78,6 +78,9 @@ repo_url() {
   else printf '%s/current\n' "$base"; fi
 }
 
+# fallback mirror, also used when auto-detection fails offline (auto.sh,
+# wizard.sh read this)
+# shellcheck disable=SC2034
 DEFAULT_MIRROR="https://repo-default.voidlinux.org"
 TEST_MIRRORS="https://repo-default.voidlinux.org https://repo-fastly.voidlinux.org https://repo-fi.voidlinux.org https://repo-de.voidlinux.org"
 

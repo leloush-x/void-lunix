@@ -99,13 +99,18 @@ tests/run.sh
 ```
 
 Runs the whole install pipeline against stubbed system commands: scenario A
-(BIOS + ext4 + i3 + greetd + extras), scenario B (UEFI + LUKS2 + Hyprland)
-and scenario C (the interactive wizard driven through a fake `dialog` with a
-scripted answer queue — typed hostname/passwords, menus, checklist), then
-~150 assertions over the produced target, installer logs and stub calls, plus
-a unit test for the matugen release fallback and one for the root-filesystem
-matrix. Details: `tests/README.md`.
-CI runs it on x86_64 (glibc) and x86_64 (musl).
+(BIOS + ext4 + i3 + greetd + extras), scenario B (UEFI + LUKS2 + Hyprland),
+scenario C (the interactive wizard driven through a fake `dialog` with a
+scripted answer queue — typed hostname/passwords, menus, checklist), scenario
+D (a missing critical package must abort before the disk is touched) and
+scenario E (NVIDIA: nonfree auto-enabled, driver in the transaction,
+`nvidia_drm.modeset=1` on the GRUB cmdline), then ~235 assertions over the
+produced target, installer logs and stub calls, plus unit tests (matugen
+release fallback, filesystem matrix, `~/.xinitrc` generation, keymap → XKB
+translation, the LUKS re-prompt loop, host repo URLs/cleanup), CLI smoke
+tests (`--version`/`--help`/`--check`) and ShellCheck static analysis.
+Details: `tests/README.md`.
+CI runs it on x86_64 (glibc) and x86_64 (musl), with ShellCheck on both.
 
 ## Ricing presets
 

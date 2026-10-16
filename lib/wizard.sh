@@ -231,6 +231,8 @@ step_desktop() {
 
   DESKTOP="$(ui_menu "Choose your desktop / window manager (stack: $SESSION):" 22 78 18 "${menu[@]}")" || wizard_abort
   if [ "$DESKTOP" = custom ]; then
+    # consumed by desktop.sh (build_pkg_list)
+    # shellcheck disable=SC2034
     CUSTOM_PKGS="$(ui_input "Space-separated package list:" 10 74 "xorg xinit i3 alacritty")" || wizard_abort
   fi
   if [ "$DESKTOP" = hyprland ]; then
@@ -260,9 +262,14 @@ step_extras() {
     AUTOSTART_DESKTOP=yes
   fi
 
+  # consumed by rice.sh (clone_dotfiles)
+  # shellcheck disable=SC2034
   DOTFILES_URL=""
   if ui_yesno "Clone a dotfiles repo into ~/.dotfiles?" 8 60; then
+    # consumed by rice.sh (clone_dotfiles)
+    # shellcheck disable=SC2034
     DOTFILES_URL="$(ui_input "Git URL of your dotfiles repo:" 9 74 "https://github.com/user/dotfiles")" || wizard_abort
+    # shellcheck disable=SC2034
     ui_yesno "Run the dotfiles install script too?" 8 60 && RUN_DOTFILES_INSTALL=yes || RUN_DOTFILES_INSTALL=no
   fi
 }
@@ -279,6 +286,8 @@ step_advanced() {
     [ "${NO_DIALOG:-no}" = yes ] || ui_msg "nonfree repo enabled automatically for NVIDIA." 8 60
   fi
 
+  # consumed by configure.sh (display manager setup)
+  # shellcheck disable=SC2034
   LOGIN_MANAGER="$(ui_menu "Login manager (advanced):" 17 76 6 \
     "auto"    "Per desktop (DEs get their DM, WMs start from tty)" \
     "none"    "No display manager (startx / start manually)" \
@@ -360,7 +369,8 @@ wizard_run_install() {
 
 wizard_finish() {
   sync
-  local msg="Installation complete!
+  local msg
+  msg="Installation complete!
 
 Bootloader: $([ "$UEFI" = yes ] && echo 'GRUB (UEFI)' || echo 'GRUB (BIOS)')
 Desktop:    $DESKTOP

@@ -6,7 +6,7 @@
 # real code. Needs /tmp/stubbin (tests/mkstubs.sh).
 set -u
 SELF="$(cd -- "$(dirname -- "$0")" && pwd)"
-cd /tmp/drysrc
+cd /tmp/drysrc || exit 1
 export VOIDC_DIR=/tmp/drysrc VOIDC_VERSION=test LOGFILE=/tmp/dry_b.log
 export STUB_LOG=/tmp/stub_b.log STUB_MISSING="hyprlock"
 : >"$STUB_LOG"; : >"$LOGFILE"

@@ -31,7 +31,7 @@ partition_disk() {
     part=$((part+1)); parts+=("$part")
     run "Creating EFI system partition" parted -s "$DISK" mkpart ESP fat32 "${start}MiB" "$((start+ESP_MB))MiB"
     try parted -s "$DISK" set "$part" esp on
-    ESPDEV="$(part_dev "$DISK" "$part")"; ESP_PARTN="$part"
+    ESPDEV="$(part_dev "$DISK" "$part")"
     start=$((start+ESP_MB))
   else
     part=$((part+1))

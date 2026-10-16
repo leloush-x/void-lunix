@@ -5,7 +5,6 @@
 # Needs /tmp/stubbin (tests/mkstubs.sh) and the /tmp/drysrc sandbox copy
 # (tests/run.sh prepares both).
 set -u
-SELF="$(cd -- "$(dirname -- "$0")" && pwd)"
 export PATH=/tmp/stubbin:$PATH
 export STUB_LOG=/tmp/stub_f.log STUB_MISSING="grub"
 : >"$STUB_LOG"

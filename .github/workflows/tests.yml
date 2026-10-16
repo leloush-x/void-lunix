@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
+      - name: ShellCheck version (preinstalled on the runner)
+        run: shellcheck --version
       - name: Run sandboxed installer test suite
         run: sudo bash tests/run.sh
 
@@ -37,8 +39,10 @@ jobs:
       - name: Update xbps (the image ships an old version)
         run: xbps-install -Syu xbps
       - name: Install test tools
-        run: xbps-install -Sy bash curl git coreutils findutils gzip tar sed grep tzdata
+        run: xbps-install -Sy bash curl git coreutils findutils gzip tar sed grep tzdata shellcheck
       - name: Clone (actions/checkout's node runtime does not run on musl)
         run: git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" .
+      - name: ShellCheck version
+        run: shellcheck --version
       - name: Run sandboxed installer test suite
         run: bash tests/run.sh

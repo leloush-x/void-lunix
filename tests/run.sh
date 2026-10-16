@@ -12,8 +12,10 @@
 #               checklist, confirmations)
 #   scenario D: a critical package missing from the repos (grub) must abort
 #               before the disk is touched, cleaning up host repo confs
-#   then ~190 assertions + the matugen fallback, filesystem matrix and
-#   xinitrc unit tests
+#   scenario E: GPU_DRIVER=nvidia — nonfree auto-enabled, driver in the
+#               transaction, nvidia_drm.modeset=1 on the GRUB cmdline
+#   then ~235 assertions + unit tests (matugen fallback, filesystem matrix,
+#   xinitrc, keymap/LUKS/host-repo units), CLI smoke tests and shellcheck
 #
 # Sandbox relaxations (applied to the /tmp/drysrc copy only, never this repo):
 #   * [ -b "$DISK" ] -> [ -e "$DISK" ] because containers cannot create
@@ -57,6 +59,9 @@ bash "$SELF/dry_wizard.sh" || { echo "SCENARIO C (WIZARD) FAILED"; exit 1; }
 echo "== scenario D: missing critical package aborts before the disk is touched"
 bash "$SELF/dry_fail.sh" || { echo "SCENARIO D (CRITICAL-PKG ABORT) FAILED"; exit 1; }
 
+echo "== scenario E: nvidia driver + GRUB modeset"
+bash "$SELF/dry_nvidia.sh" || { echo "SCENARIO E (NVIDIA) FAILED"; exit 1; }
+
 echo "== assertions"
 bash "$SELF/check_dry.sh" || exit 1
 
@@ -68,6 +73,19 @@ bash "$SELF/fs-matrix.sh" || exit 1
 
 echo "== xinitrc unit test"
 bash "$SELF/xinitrc.sh" || exit 1
+
+echo "== unit tests (keymap, LUKS loop, host repos, profiles)"
+bash "$SELF/units.sh" || exit 1
+
+echo "== CLI smoke tests"
+bash "$SELF/smoke.sh" || exit 1
+
+echo "== shellcheck (static analysis)"
+if command -v shellcheck >/dev/null 2>&1; then
+  bash "$SELF/shellcheck.sh" || exit 1
+else
+  echo "  skip (shellcheck not installed)"
+fi
 
 echo
 echo "ALL TESTS PASSED"
