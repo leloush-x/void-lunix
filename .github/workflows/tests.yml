@@ -44,6 +44,8 @@ jobs:
           mkdir -p /etc/xbps.d
           printf 'repository=https://repo-default.voidlinux.org/current/musl\n' \
             > /etc/xbps.d/00-repository-main.conf
+      - name: Update xbps (the image ships an old version)
+        run: xbps-install -Syu xbps
       - name: Install test tools
         run: xbps-install -Sy bash curl git coreutils findutils gzip tar sed grep
       - name: Clone (actions/checkout's node runtime does not run on musl)
