@@ -63,8 +63,9 @@ cd void-lunix-main
 ```
 
 Then follow the wizard: session stack → disk → filesystem → swap → LUKS →
-hostname/user → desktop → extras → advanced (GPU, login manager) → mirror →
-summary → install. Reboot at the end.
+identity (hostname, user, passwords — all re-editable in a review step) →
+desktop → extras → advanced (GPU, login manager) → mirror → summary →
+install. Reboot at the end.
 
 ## Unattended install
 
@@ -84,6 +85,18 @@ See `profiles/` for every supported key.
 
 Prints firmware mode, libc, detected microcode, tool availability, disks,
 target mount state and mirror reachability — handy before a real run.
+
+## Tests (no disk changes)
+
+```sh
+tests/run.sh
+```
+
+Runs the whole install pipeline against stubbed system commands: scenario A
+(BIOS + ext4 + i3 + greetd + extras) and scenario B (UEFI + LUKS2 + Hyprland),
+then ~90 assertions over the produced target, installer logs and stub calls,
+plus a unit test for the matugen release fallback. Details:
+`tests/README.md`.
 
 ## Ricing presets
 
@@ -140,6 +153,7 @@ profiles/i3.conf      example unattended profile (X11)
 profiles/niri.conf    example unattended profile (Wayland)
 profiles/hyprland.conf example unattended profile (Hyprland, community repo)
 assets/wall.png.b64   embedded wallpaper
+tests/                sandboxed end-to-end dry run (tests/run.sh)
 ```
 
 ## Notes & caveats
@@ -162,9 +176,14 @@ assets/wall.png.b64   embedded wallpaper
   skipped with a warning — no half-broken transactions. The mirror probe and
   repo paths also handle musl/aarch64 layouts (`/current/musl`,
   `/current/aarch64`, `x86_64-musl-repodata`).
-- **matugen** is not in the Void repos (yet): the installer downloads the
-  latest prebuilt release binary to `/usr/local/bin`. For a musl system it
-  picks the musl build. If GitHub is unreachable it's skipped gracefully.
+- **Bootloader is arch-aware**: UEFI installs use `grub-x86_64-efi` /
+  `grub-arm64-efi` with the matching `grub-install --target`; legacy BIOS
+  (GRUB i386-pc) is x86-only — on aarch64 the installer stops early and asks
+  you to boot the medium in UEFI mode.
+- **matugen** installs from the Void repos in the main transaction. If it is
+  ever missing there, the installer falls back to the latest prebuilt GitHub
+  release binary (`/usr/local/bin`) with arch/libc-aware asset matching, and
+  skips it gracefully if neither source works.
 - **NVIDIA**: choosing the NVIDIA driver enables the nonfree repo and installs
   `nvidia` + Vulkan; on Wayland/Hyprland you may need kernel params
   (`nvidia_drm.modeset=1 nvidia_drm.fbdev=1`) — see the Void docs.
