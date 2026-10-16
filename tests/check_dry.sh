@@ -75,7 +75,16 @@ check "log: i3-gaps fallback"    grep -q "i3-gaps' missing -> using 'i3'" /tmp/d
 check "log: matugen pkg skipped" grep -q "skipped: matugen" /tmp/dry_a.log
 check "log: polkit-gnome skipped" grep -q "skipped: polkit-gnome" /tmp/dry_a.log
 if [ "$ARCH" = x86_64 ]; then
-  check "matugen fallback installed" test -x "$A/usr/local/bin/matugen"
+  # network-dependent: the real GitHub release either installs, or the
+  # installer degrades gracefully when offline/rate-limited — the
+  # deterministic asset-selection logic is covered by matugen-fallback.sh
+  if [ -x "$A/usr/local/bin/matugen" ]; then
+    ok "matugen fallback installed (network)"
+  elif grep -q "could not resolve a matugen release asset" /tmp/dry_a.log; then
+    ok "matugen fallback gracefully skipped (offline/rate-limited)"
+  else
+    bad "matugen fallback neither installed nor gracefully skipped"
+  fi
 else
   check "matugen fallback skipped (no $ARCH asset)" \
     grep -q "could not resolve a matugen release asset" /tmp/dry_a.log
@@ -124,8 +133,11 @@ check "stub: no mkswap (LUKS)"   bash -c "! grep -q mkswap /tmp/stub_b.log"
 check "stub: efivarfs mount"     grep -q "efivarfs" /tmp/stub_b.log
 check "pkg: $GRUB_PKG"           grep -q "$GRUB_PKG" /tmp/stub_b.log
 check "chroot: grub $GRUB_TGT"   grep -q "grub-install --target=$GRUB_TGT" /tmp/stub_b.log
-if [ "$ARCH" != x86_64 ]; then
-  check "no x86_64-efi hardcode" bash -c "! grep -q 'target=x86_64-efi' /tmp/stub_b.log"
+# the other arch's target must never be used (guards against a hardcode)
+if [ "$GRUB_TGT" = arm64-efi ]; then
+  check "no x86_64-efi leak"     bash -c "! grep -q 'target=x86_64-efi' /tmp/stub_b.log"
+else
+  check "no arm64-efi leak"      bash -c "! grep -q 'target=arm64-efi' /tmp/stub_b.log"
 fi
 check "chroot: xbps-reconfigure" grep -q "xbps-reconfigure -fa" /tmp/stub_b.log
 check "xbps-install transaction" grep -q "xbps-install -Sy -y -r /tmp/drytarget_b" /tmp/stub_b.log
