@@ -16,7 +16,7 @@ detect_environment() {
   # cpu microcode
   UCODE=()
   if grep -qm1 'GenuineIntel' /proc/cpuinfo; then UCODE=(intel-ucode); fi
-  if grep -qm1 'AuthenticAMD' /proc/cpuinfo; then UCODE=(amd-ucode); fi
+  if grep -qm1 'AuthenticAMD' /proc/cpuinfo; then UCODE=(linux-firmware-amd); fi
 
   # ram
   RAM_MB="$(awk '/^MemTotal:/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null)"

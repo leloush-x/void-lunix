@@ -104,7 +104,7 @@ run_auto() {
   say "Installation complete"
   note "Desktop: $DESKTOP ($SESSION stack)   User: $USERNAME"
   if desktop_uses_startx; then note "Log in and run: startx"
-  elif desktop_uses_wayland; then note "Log in and run: $(desktop_session_cmd)"
+  elif desktop_uses_wayland; then note "Log in and run: dbus-run-session -- $(desktop_session_cmd)"
   fi
   note "Target mounted at $TARGET — reboot when ready (log: $LOGFILE)"
 }

@@ -6,6 +6,7 @@
 declare -A PKG_FALLBACK=(
   [i3-gaps]=i3
   [waybar]=Waybar
+  [amd-ucode]=linux-firmware-amd
   [pipewire-pulse]=pipewire
   [vsv]=runit
 )
@@ -22,6 +23,12 @@ enable_host_extra_repo() {
     printf 'repository=%s\n' "$url" >"/etc/xbps.d/$DESKTOP_EXTRA_CONF"
     HOST_EXTRA_REPO_ADDED=yes
     verb "extra repository enabled on live system: $url"
+    # early, actionable warning if the third-party repo is unreachable
+    if command -v curl >/dev/null 2>&1 && \
+       ! curl -fsI -m 10 "$url/${XBPS_ARCH:-x86_64}-repodata" >>"$LOGFILE" 2>&1; then
+      note "Warning: $url looks unreachable — packages from it may be skipped."
+      warnlog "extra repository unreachable: $url/${XBPS_ARCH:-x86_64}-repodata"
+    fi
   fi
 }
 
@@ -73,7 +80,7 @@ prepare_target() {
 
 extras_pkgs() {
   local out=""
-  in_list audio     "$EXTRAS" && out+=" pipewire wireplumber pipewire-pulse alsa-utils rtkit pavucontrol"
+  in_list audio     "$EXTRAS" && out+=" pipewire wireplumber alsa-utils rtkit pavucontrol"
   in_list networking "$EXTRAS" && out+=" NetworkManager network-manager-applet"
   in_list bluetooth "$EXTRAS" && out+=" bluez blueman"
   in_list printing  "$EXTRAS" && out+=" cups cups-filters"
@@ -92,9 +99,9 @@ build_pkg_list() {
   out+=" ${UCODE[*]:-}"
 
   if [ "$UEFI" = yes ]; then
-    out+=" grub-x86_64-efi efibootmgr"
+    out+=" grub grub-x86_64-efi efibootmgr"
   else
-    out+=" grub-i386-pc"
+    out+=" grub"
   fi
   [ "$LUKS" = yes ] && out+=" cryptsetup"
 

@@ -3,7 +3,8 @@
 
 # gen_waybar <workspace-module>  (e.g. hyprland/workspaces, sway/workspaces)
 gen_waybar() {
-  local home="$TARGET/home/$USERNAME" cfg="$home/.config" mod="${1:-}"
+  local home="$TARGET/home/$USERNAME"
+  local cfg="$home/.config" mod="${1:-}"
   mkdir -p "$cfg/waybar"
 
   local left="[]"
@@ -108,7 +109,8 @@ EOF
 
 # ----------------------------------------------------------------- hyprland --
 gen_hyprland() {
-  local home="$TARGET/home/$USERNAME" cfg="$home/.config"
+  local home="$TARGET/home/$USERNAME"
+  local cfg="$home/.config"
   mkdir -p "$cfg/hypr"
 
   cat >"$cfg/hypr/hyprland.conf" <<'EOF'
@@ -117,6 +119,7 @@ $mod = SUPER
 
 monitor = , preferred, auto, 1
 
+exec-once = pipewire
 exec-once = waybar
 exec-once = hyprpaper
 exec-once = mako
@@ -274,7 +277,8 @@ EOF
 
 # --------------------------------------------------------------------- sway --
 gen_sway() {
-  local home="$TARGET/home/$USERNAME" cfg="$home/.config"
+  local home="$TARGET/home/$USERNAME"
+  local cfg="$home/.config"
   mkdir -p "$cfg/sway"
 
   cat >"$cfg/sway/config" <<'EOF'
@@ -286,6 +290,7 @@ set $bg     #1e1e2e
 set $fg     #cdd6f4
 set $accent #89b4fa
 
+exec pipewire
 exec waybar
 exec mako
 exec sh -c '[ -f ~/Pictures/wall.png ] && swaybg -i ~/Pictures/wall.png -m fill'
@@ -359,7 +364,8 @@ EOF
 
 # --------------------------------------------------------------------- niri --
 gen_niri() {
-  local home="$TARGET/home/$USERNAME" cfg="$home/.config"
+  local home="$TARGET/home/$USERNAME"
+  local cfg="$home/.config"
   mkdir -p "$cfg/niri"
 
   cat >"$cfg/niri/config.kdl" <<EOF
@@ -407,6 +413,7 @@ layout {
     }
 }
 
+spawn-at-startup "pipewire"
 spawn-at-startup "waybar"
 spawn-at-startup "mako"
 spawn-at-startup "swayidle" "-w" "timeout" "300" "swaylock -f" "timeout" "600" "niri msg action power-off-monitors" "resume" "niri msg action power-on-monitors" "before-sleep" "swaylock -f"

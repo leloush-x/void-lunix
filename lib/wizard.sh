@@ -167,7 +167,7 @@ step_desktop() {
 
 step_extras() {
   local -a items=(
-    audio     "PipeWire + WirePlumber (user services)" on
+    audio     "PipeWire audio (wireplumber + pulse server)" on
     networking "NetworkManager + applet" on
     fonts     "Fonts (DejaVu, emoji, nerd)" on
     nonfree   "Enable nonfree repo (firmware/drivers)" on
@@ -296,7 +296,7 @@ Log:        /var/log/voidc-install.log
     msg+="Log in as $USERNAME and run:  startx\n"
     [ "$AUTOSTART_DESKTOP" = yes ] && msg+="(X starts automatically on tty1)\n"
   elif desktop_uses_wayland; then
-    msg+="Log in as $USERNAME and run:  $(desktop_session_cmd)\n"
+    msg+="Log in as $USERNAME and run:  dbus-run-session -- $(desktop_session_cmd)\n"
     [ "$AUTOSTART_DESKTOP" = yes ] && msg+="(Wayland session starts automatically on tty1)\n"
   fi
   local dm; dm="$(effective_dm)"

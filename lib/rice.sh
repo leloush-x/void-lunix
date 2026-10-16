@@ -83,7 +83,8 @@ install_wallpaper() {
 
 # ------------------------------------------------------------------- i3 -----
 gen_i3() {
-  local home="$TARGET/home/$USERNAME" cfg="$home/.config"
+  local home="$TARGET/home/$USERNAME"
+  local cfg="$home/.config"
 
   cat >"$home/.xinitrc" <<'EOF'
 #!/bin/sh
@@ -103,6 +104,7 @@ exec_always --no-startup-id sh -c '[ -f ~/Pictures/wall.png ] && feh --bg-fill ~
 exec --no-startup-id picom --config ~/.config/picom/picom.conf
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec --no-startup-id dunst
+exec --no-startup-id pipewire
 
 # launcher / terminal
 bindsym $mod+Return exec alacritty
@@ -373,7 +375,8 @@ EOF
 
 # ----------------------------------------------------------------- bspwm ----
 gen_bspwm() {
-  local home="$TARGET/home/$USERNAME" cfg="$home/.config"
+  local home="$TARGET/home/$USERNAME"
+  local cfg="$home/.config"
   mkdir -p "$cfg/bspwm" "$cfg/sxhkd"
 
   cat >"$cfg/bspwm/bspwmrc" <<'EOF'
@@ -383,6 +386,7 @@ pgrep -x sxhkd >/dev/null || sxhkd &
 picom --config ~/.config/picom/picom.conf &
 ~/.config/polybar/launch.sh &
 dunst &
+pipewire &
 [ -f ~/Pictures/wall.png ] && feh --bg-fill ~/Pictures/wall.png
 bspc monitor -d 1 2 3 4 5 6 7 8 9 10
 bspc config border_width 2

@@ -32,7 +32,11 @@ package transaction.
 - **Filesystems**: ext4 or btrfs, optional swap, optional **LUKS2** root.
 - **Bootloader**: GRUB for UEFI and BIOS, generated for your layout.
 - **User setup**: sudo/wheel user, services enabled (dbus, elogind,
-  NetworkManager, per-user PipeWire via runit), keyboard for console + X.
+  NetworkManager, rtkit), keyboard for console + X.
+- **Audio** follows the official Void handbook: `pipewire` + `wireplumber`,
+  with system config drop-ins that make `pipewire` launch the session manager
+  and the PulseAudio server; every session starts it with a D-Bus session bus
+  (greetd gets a `dbus-run-session` wrapper).
 - **Ricing presets**: i3 + polybar and Hyprland/niri/Sway + Waybar (plus rofi/wofi,
   picom, dunst/mako, alacritty/foot), a wallpaper, and **matugen**
   (repo → prebuilt release binary fallback).
@@ -112,9 +116,10 @@ replace with your own dotfiles).
 ~/Pictures/wall.png   generated gradient wallpaper
 ```
 
-Log in as your user and run `startx` (X11) or `Hyprland` / `niri` / `sway` (Wayland),
-or enable auto-start on tty1 / a display manager in the wizard. Per-user
-PipeWire/WirePlumber services are enabled through runit (`runsvdir-$USER`).
+Log in as your user and run `startx` (X11) or
+`dbus-run-session -- Hyprland` / `niri` / `sway` (Wayland), or enable
+auto-start on tty1 / a display manager in the wizard. Every generated session
+starts PipeWire, and desktop environments pick it up from XDG autostart.
 
 ## Repository layout
 

@@ -23,7 +23,7 @@ desktop_pkgs() {
     openbox)  printf '%s\n' "$_x_base openbox obconf tint2 alacritty rofi feh dunst picom" ;;
     awesome)  printf '%s\n' "$_x_base awesome alacritty rofi picom feh" ;;
     qtile)    printf '%s\n' "$_x_base qtile alacritty rofi picom feh" ;;
-    xfce)     printf '%s\n' "$_x_base xfce4 xfce4-goodies thunar firefox-esr" ;;
+    xfce)     printf '%s\n' "$_x_base xfce4 xfce4-terminal xfce4-whiskermenu-plugin xfce4-screenshooter mousepad thunar firefox-esr" ;;
     lxqt)     printf '%s\n' "$_x_base lxqt-session lxqt-panel lxqt-config lxqt-runner lxqt-policykit pcmanfm-qt qterminal firefox-esr" ;;
     mate)     printf '%s\n' "$_x_base mate mate-extra firefox-esr" ;;
     cinnamon) printf '%s\n' "$_x_base cinnamon nemo firefox-esr" ;;
