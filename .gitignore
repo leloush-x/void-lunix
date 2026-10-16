@@ -1,0 +1,8 @@
+# runtime artifacts
+*.log
+/tmp/
+/voidc-state.env
+
+# editors
+*.swp
+*~

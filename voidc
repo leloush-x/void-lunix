@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# voidc — fast, clean text-based installer for Void Linux.
+# Usage: voidc [--auto profile.conf] [--target /mnt] [--check] [--version]
+set -u
+
+VOIDC_VERSION="1.0.0"
+VOIDC_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+: "${TARGET:=/mnt}"
+: "${LOGFILE:=/tmp/voidc-$(date +%Y%m%d-%H%M%S).log}"
+export VOIDC_VERSION VOIDC_DIR TARGET LOGFILE
+
+# ------------------------------------------------------------------ libs ----
+# shellcheck source=lib/common.sh
+. "$VOIDC_DIR/lib/common.sh"
+# shellcheck source=lib/detect.sh
+. "$VOIDC_DIR/lib/detect.sh"
+# shellcheck source=lib/desktop.sh
+. "$VOIDC_DIR/lib/desktop.sh"
+# shellcheck source=lib/install.sh
+. "$VOIDC_DIR/lib/install.sh"
+# shellcheck source=lib/partition.sh
+. "$VOIDC_DIR/lib/partition.sh"
+# shellcheck source=lib/configure.sh
+. "$VOIDC_DIR/lib/configure.sh"
+# shellcheck source=lib/boot.sh
+. "$VOIDC_DIR/lib/boot.sh"
+# shellcheck source=lib/rice.sh
+. "$VOIDC_DIR/lib/rice.sh"
+# shellcheck source=lib/wizard.sh
+. "$VOIDC_DIR/lib/wizard.sh"
+# shellcheck source=lib/auto.sh
+. "$VOIDC_DIR/lib/auto.sh"
+
+usage() {
+  cat <<EOF
+voidc $VOIDC_VERSION — fast, clean text-based installer for Void Linux
+
+Usage:
+  voidc                      interactive TUI wizard (run from Void live ISO)
+  voidc --auto <profile>     unattended install (see profiles/i3.conf)
+  voidc --check              environment report, no changes
+  voidc --target <dir>       install below <dir> (default: /mnt)
+
+Options:
+  -h, --help                 this help
+  -v, --version              version
+EOF
+}
+
+run_check() {
+  say "voidc $VOIDC_VERSION — environment check"
+  detect_environment
+  printf '  %-22s %s\n' "firmware:"   "$([ "$UEFI" = yes ] && echo 'UEFI' || echo 'BIOS')"
+  printf '  %-22s %s\n' "arch/libc:"  "$XBPS_ARCH ($LIBC)"
+  printf '  %-22s %s\n' "ram:"         "${RAM_MB} MiB"
+  printf '  %-22s %s\n' "microcode:"   "${UCODE[*]:-none}"
+  printf '  %-22s %s\n' "xbps-install:" "$(command -v xbps-install >/dev/null 2>&1 && echo yes || echo NO)"
+  printf '  %-22s %s\n' "dialog:"      "$(command -v dialog >/dev/null 2>&1 && echo yes || echo NO)"
+  printf '  %-22s %s\n' "parted:"      "$(command -v parted >/dev/null 2>&1 && echo yes || echo NO)"
+  printf '  %-22s %s\n' "cryptsetup:"  "$(command -v cryptsetup >/dev/null 2>&1 && echo yes || echo NO)"
+  printf '  %-22s %s\n' "target ($TARGET):" "$(findmnt -rn "$TARGET" >/dev/null 2>&1 && echo 'mounted' || echo 'free')"
+  echo
+  echo "  disks:"
+  list_disks | sed 's/^/    /'
+  echo
+  printf '  %-22s ' "default mirror:"
+  if mirror_reachable "$DEFAULT_MIRROR"; then echo "reachable"; else echo "NOT reachable (check network)"; fi
+  printf '  %-22s ' "fastest mirror:"
+  local fastest; fastest="$(pick_fastest_mirror)"
+  echo "${fastest:-none found}"
+  echo
+  log "check run: uefi=$UEFI arch=$XBPS_ARCH libc=$LIBC"
+  return 0
+}
+
+# ------------------------------------------------------------------- main ---
+MODE=wizard
+AUTO_CFG=""
+ORIG_ARGS=("$@")
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --auto)    MODE=auto; AUTO_CFG="${2:-}"; [ -n "$AUTO_CFG" ] || die "--auto needs a profile file"; shift 2 ;;
+    --target)  TARGET="${2:-}"; [ -n "$TARGET" ] || die "--target needs a directory"; shift 2 ;;
+    --check)   MODE=check; shift ;;
+    -h|--help) usage; exit 0 ;;
+    -v|--version) echo "voidc $VOIDC_VERSION"; exit 0 ;;
+    *) usage; die "Unknown argument: $1" ;;
+  esac
+done
+
+log "voidc $VOIDC_VERSION started (mode=$MODE target=$TARGET)"
+
+if [ "$MODE" != check ] && [ "$(id -u)" -ne 0 ]; then
+  if command -v sudo >/dev/null 2>&1; then
+    exec sudo -E "$0" ${ORIG_ARGS[@]+"${ORIG_ARGS[@]}"}
+  fi
+  die "Please run as root."
+fi
+
+case "$MODE" in
+  check)  run_check ;;
+  auto)   run_auto "$AUTO_CFG" ;;
+  wizard) run_wizard ;;
+esac
