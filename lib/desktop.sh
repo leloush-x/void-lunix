@@ -4,7 +4,7 @@
 
 # classification
 X11_ONLY="i3 bspwm dwm openbox awesome qtile xfce lxqt mate cinnamon budgie"
-WAYLAND_ONLY="sway niri river wayfire labwc"
+WAYLAND_ONLY="sway hyprland niri river wayfire labwc"
 DUAL_STACK="kde gnome"
 
 # shared package bases
@@ -32,12 +32,26 @@ desktop_pkgs() {
     gnome)    printf '%s\n' "$_x_base gnome gnome-terminal firefox-esr" ;;
     sway)     printf '%s\n' "$_wl_base sway swaybg swayidle swaylock Waybar wofi mako foot wl-clipboard grim slurp brightnessctl xdg-desktop-portal-wlr" ;;
     niri)     printf '%s\n' "$_wl_base niri xwayland-satellite swayidle swaylock swaybg Waybar wofi mako foot wl-clipboard grim slurp brightnessctl xdg-desktop-portal-gtk" ;;
-    hyprland) printf '%s\n' "$_wl_base hyprland hyprpaper hypridle hyprlock hyprpicker xdg-desktop-portal-hyprland xdg-desktop-portal-gtk Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl polkit-gnome qt6ct" ;;
+    hyprland) printf '%s\n' "$_wl_base hyprland hyprpaper hypridle hyprlock hyprpicker xdg-desktop-portal-hyprland xdg-desktop-portal-gtk hyprpolkitagent Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl qt6ct" ;;
     river)    printf '%s\n' "$_wl_base river xdg-desktop-portal-wlr Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl polkit-gnome" ;;
     wayfire)  printf '%s\n' "$_wl_base wayfire wf-shell xdg-desktop-portal-wlr Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl polkit-gnome" ;;
     labwc)    printf '%s\n' "$_wl_base labwc xdg-desktop-portal-wlr Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl polkit-gnome" ;;
     custom)   printf '%s\n' "$CUSTOM_PKGS" ;;
     *)        printf '\n' ;;
+  esac
+}
+
+# Extra third-party repository the selected desktop needs, if any.
+# Hyprland is not packaged in Void; it ships via the hyprland-void community
+# repo (github.com/Makrennel/hyprland-void), one branch per arch/libc.
+# Prints the repository URL, or returns 1 when the desktop needs none.
+desktop_extra_repo_url() {
+  case "$DESKTOP" in
+    hyprland)
+      local arch="${XBPS_ARCH:-x86_64}" libc=glibc
+      case "$arch" in *-musl) libc=musl; arch="${arch%-musl}" ;; esac
+      printf 'https://raw.githubusercontent.com/Makrennel/hyprland-void/repository-%s-%s\n' "$arch" "$libc" ;;
+    *) return 1 ;;
   esac
 }
 

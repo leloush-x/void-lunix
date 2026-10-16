@@ -12,7 +12,7 @@ package transaction.
   - Single-transaction package install (fast)
   - X11 / Wayland session stacks
   - i3 bspwm dwm openbox awesome qtile xfce lxqt mate cinnamon budgie
-  - KDE GNOME niri Sway River Wayfire Labwc
+  - KDE GNOME Hyprland niri Sway River Wayfire Labwc
   - Ricing presets: polybar, Waybar, rofi, wofi, picom, dunst, mako, matugen
 ```
 
@@ -33,7 +33,7 @@ package transaction.
 - **Bootloader**: GRUB for UEFI and BIOS, generated for your layout.
 - **User setup**: sudo/wheel user, services enabled (dbus, elogind,
   NetworkManager, per-user PipeWire via runit), keyboard for console + X.
-- **Ricing presets**: i3 + polybar and niri/Sway + Waybar (plus rofi/wofi,
+- **Ricing presets**: i3 + polybar and Hyprland/niri/Sway + Waybar (plus rofi/wofi,
   picom, dunst/mako, alacritty/foot), a wallpaper, and **matugen**
   (repo → prebuilt release binary fallback).
 - **Dotfiles**: optionally clone your dotfiles repo (and run its installer).
@@ -100,9 +100,10 @@ replace with your own dotfiles).
 ~/Pictures/wall.png   generated gradient wallpaper (feh --bg-fill)
 ```
 
-**niri / sway (Wayland)** — swaybg, Waybar, wofi, mako, foot:
+**Hyprland / niri / sway (Wayland)** — swaybg, Waybar, wofi, mako, foot:
 
 ```
+~/.config/hypr/       hyprland.conf, hyprpaper, hypridle, hyprlock
 ~/.config/niri/       config.kdl (binds, gaps, autostarts, screenshots)
 ~/.config/sway/       sway config (gaps, Waybar, swayidle/swaylock)
 ~/.config/waybar/     config + style.css (no icon font required)
@@ -111,7 +112,7 @@ replace with your own dotfiles).
 ~/Pictures/wall.png   generated gradient wallpaper
 ```
 
-Log in as your user and run `startx` (X11) or `niri` / `sway` (Wayland),
+Log in as your user and run `startx` (X11) or `Hyprland` / `niri` / `sway` (Wayland),
 or enable auto-start on tty1 / a display manager in the wizard. Per-user
 PipeWire/WirePlumber services are enabled through runit (`runsvdir-$USER`).
 
@@ -132,7 +133,7 @@ lib/wizard.sh         interactive flow
 lib/auto.sh           unattended flow
 profiles/i3.conf      example unattended profile (X11)
 profiles/niri.conf    example unattended profile (Wayland)
-profiles/hyprland.conf source-build-only Hyprland profile (see caveats)
+profiles/hyprland.conf example unattended profile (Hyprland, community repo)
 assets/wall.png.b64   embedded wallpaper
 ```
 
@@ -141,14 +142,21 @@ assets/wall.png.b64   embedded wallpaper
 - **i3-gaps** no longer exists as a package; duct taped via fallback to `i3`
   (upstream i3 has gaps built in since 4.22). The generated config uses
   `gaps`/`smart_gaps`, which work on both.
-- **Hyprland is not packaged in Void** (verified against `void-packages` and
-  the official package API — only `hyprpicker` exists). The wizard offers
-  **niri** instead, which is the closest popular Wayland ricer on Void. The
-  Hyprland config generator and `profiles/hyprland.conf` are kept for people
-  who build the stack from source.
+- **Hyprland** is not packaged in Void, so voidc installs it from the
+  **hyprland-void** community repo (github.com/Makrennel/hyprland-void). When
+  you pick Hyprland it enables that repo on the live system *and* in the
+  installed system — with the right branch for your arch/libc
+  (x86_64/aarch64 × glibc/musl) — so `hyprland`, `hyprpaper`, `hypridle`,
+  `hyprlock` and `xdg-desktop-portal-hyprland` install normally. This is
+  third-party software not shipped by Void: use it only if you trust it.
+- **Hyprland seat errors**: if Hyprland reports a seat/DRM permission error,
+  enable seatd (`ln -s /etc/sv/seatd /var/service`), start it and add your
+  user to the `_seatd` group (per the hyprland-void README).
 - **Package names are verified against the live Void index** before install
   (`Waybar` is capital-W in Void, for example) and missing packages are
-  skipped with a warning — no half-broken transactions.
+  skipped with a warning — no half-broken transactions. The mirror probe and
+  repo paths also handle musl/aarch64 layouts (`/current/musl`,
+  `/current/aarch64`, `x86_64-musl-repodata`).
 - **matugen** is not in the Void repos (yet): the installer downloads the
   latest prebuilt release binary to `/usr/local/bin`. For a musl system it
   picks the musl build. If GitHub is unreachable it's skipped gracefully.

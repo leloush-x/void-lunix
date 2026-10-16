@@ -10,8 +10,34 @@ declare -A PKG_FALLBACK=(
   [vsv]=runit
 )
 
+# Third-party repos a desktop may need (e.g. Hyprland's community repo) are
+# enabled on the live system (remote index + install transaction) and written
+# into the target. The live copy is removed when the install finishes.
+DESKTOP_EXTRA_CONF="30-repository-desktop.conf"
+
+enable_host_extra_repo() {
+  local url
+  if url="$(desktop_extra_repo_url)"; then
+    mkdir -p /etc/xbps.d
+    printf 'repository=%s\n' "$url" >"/etc/xbps.d/$DESKTOP_EXTRA_CONF"
+    HOST_EXTRA_REPO_ADDED=yes
+    verb "extra repository enabled on live system: $url"
+  fi
+}
+
+disable_host_extra_repo() {
+  if [ "${HOST_EXTRA_REPO_ADDED:-no}" = yes ]; then
+    rm -f "/etc/xbps.d/$DESKTOP_EXTRA_CONF"
+    HOST_EXTRA_REPO_ADDED=no
+  fi
+}
+
 prepare_target() {
   run "Creating target directories" mkdir -p "$TARGET/etc/xbps.d" "$TARGET/var/db/xbps" "$TARGET/dev" "$TARGET/proc" "$TARGET/sys" "$TARGET/run"
+
+  # desktop-specific third-party repo (enabled before the host config is
+  # copied below, so the copy loop carries it into the target too)
+  enable_host_extra_repo
 
   # repository configuration (skip lines pointing at live-media/local repos)
   local f base
@@ -30,8 +56,14 @@ prepare_target() {
   if in_list nonfree "$EXTRAS"; then
     printf 'repository=%s/nonfree\n' "$base_url" >"$TARGET/etc/xbps.d/20-repository-nonfree.conf"
   fi
-  if in_list multilib "$EXTRAS" && [ "$LIBC" = glibc ]; then
+  if in_list multilib "$EXTRAS" && [ "${XBPS_ARCH:-x86_64}" = x86_64 ]; then
     printf 'repository=%s/multilib\n' "$base_url" >"$TARGET/etc/xbps.d/20-repository-multilib.conf"
+  fi
+
+  local extra_url
+  if extra_url="$(desktop_extra_repo_url)"; then
+    printf 'repository=%s\n' "$extra_url" >"$TARGET/etc/xbps.d/$DESKTOP_EXTRA_CONF"
+    verb "extra repository in target: $extra_url"
   fi
 
   # DNS for chroot configuration stage

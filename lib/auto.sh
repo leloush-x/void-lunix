@@ -21,7 +21,7 @@ auto_defaults() {
   : "${MIRROR:=auto}"
   : "${DOTFILES_URL:=}"
   : "${RUN_DOTFILES_INSTALL:=no}"
-  if [ "$LIBC" = glibc ] && ! in_list multilib "$EXTRAS"; then
+  if [ "$XBPS_ARCH" = x86_64 ] && ! in_list multilib "$EXTRAS"; then
     EXTRAS+=" multilib"
   fi
   if desktop_needs_nonfree && ! in_list nonfree "$EXTRAS"; then
@@ -50,7 +50,7 @@ auto_validate() {
     *) die "Unknown DESKTOP: $DESKTOP";;
   esac
   if [ "$DESKTOP" = hyprland ]; then
-    warnlog "Hyprland is not packaged in Void: packages will be skipped; this only makes sense for a manual source build."
+    warnlog "Hyprland: the third-party hyprland-void community repo will be enabled."
   fi
   case "$SESSION" in any|x11|wayland) ;; *) die "SESSION must be any|x11|wayland";; esac
   desktop_allowed "$DESKTOP" || die "DESKTOP=$DESKTOP is not available in SESSION=$SESSION (use SESSION=any)."
@@ -98,6 +98,7 @@ run_auto() {
   install_bootloader
   desktop_setup
   run "Saving install log" cp "$LOGFILE" "$TARGET/var/log/voidc-install.log"
+  disable_host_extra_repo
   sync
 
   say "Installation complete"

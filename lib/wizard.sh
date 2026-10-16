@@ -7,7 +7,7 @@ Fast, clean text-based installer for Void Linux.
 
 - GPT partitioning (UEFI + BIOS), optional LUKS
 - Single-transaction package install
-- i3 / bspwm / dwm / openbox / sway / XFCE / KDE / GNOME / Cinnamon / MATE
+- X11 + Wayland: i3, bspwm, dwm, sway, niri, Hyprland, XFCE, KDE, ...
 - Ricing-ready: polybar, rofi, picom, dunst, alacritty, matugen"
 
 wizard_abort() {
@@ -143,6 +143,7 @@ step_desktop() {
     "budgie|Budgie" \
     "kde|KDE Plasma" \
     "gnome|GNOME" \
+    "hyprland|Hyprland — Wayland tiling (community repo)" \
     "niri|niri — scrolling Wayland preset (recommended)" \
     "sway|Sway — i3-like Wayland preset" \
     "river|River (Wayland, minimal)" \
@@ -159,6 +160,9 @@ step_desktop() {
   if [ "$DESKTOP" = custom ]; then
     CUSTOM_PKGS="$(ui_input "Space-separated package list:" 10 74 "xorg xinit i3 alacritty")" || wizard_abort
   fi
+  if [ "$DESKTOP" = hyprland ]; then
+    ui_msg "Hyprland is not packaged in Void — voidc installs it from\nthe community repository (github.com/Makrennel/hyprland-void):\n\n  $(desktop_extra_repo_url)\n\nThe repo is enabled on the live system and in the target,\nthen hyprland, hyprpaper, hypridle, hyprlock and\nxdg-desktop-portal-hyprland are installed normally.\n\nThird-party software — continue only if you trust it." 19 78
+  fi
 }
 
 step_extras() {
@@ -171,7 +175,7 @@ step_extras() {
     printing  "Printing (CUPS)" off
     ssh       "SSH server" off
   )
-  [ "$LIBC" = glibc ] && items+=(multilib "Enable multilib repo (32-bit support)" off)
+  [ "$XBPS_ARCH" = x86_64 ] && items+=(multilib "Enable multilib repo (32-bit support)" off)
 
   local sel
   sel="$(ui_check "Extra options:" 18 74 9 "${items[@]}")" || wizard_abort
@@ -237,6 +241,8 @@ wizard_summary() {
   [ "$SWAP_MB" -gt 0 ] && swap_txt="${SWAP_MB} MiB"
   local dm_txt; dm_txt="$(effective_dm)"
   [ -n "$dm_txt" ] || dm_txt="none (tty)"
+  local desk_txt="$DESKTOP"
+  [ "$DESKTOP" = hyprland ] && desk_txt="$DESKTOP (community repo)"
   ui_msg "Installation summary
 ------------------------------------------
 Disk:       $DISK  [$([ "$UEFI" = yes ] && echo UEFI || echo BIOS)]
@@ -249,7 +255,7 @@ User:       $USERNAME   (wheel/sudo)
 Timezone:   $TIMEZONE    Locale: $LOCALE    Keymap: $KEYMAP
 
 Session:    $SESSION stack
-Desktop:    $DESKTOP
+Desktop:    $desk_txt
 Login:      $dm_txt   GPU: $GPU_DRIVER
 Extras:    $EXTRAS
 
@@ -272,6 +278,7 @@ wizard_run_install() {
   install_bootloader
   desktop_setup
   run "Saving install log" cp "$LOGFILE" "$TARGET/var/log/voidc-install.log"
+  disable_host_extra_repo
   say "=== installation finished ==="
 }
 

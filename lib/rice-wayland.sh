@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# voidc — Wayland rice presets (hyprland / sway) + shared waybar/wofi/mako.
+# voidc — Wayland rice presets (hyprland / niri / sway) + shared waybar/wofi/mako.
 
 # gen_waybar <workspace-module>  (e.g. hyprland/workspaces, sway/workspaces)
 gen_waybar() {

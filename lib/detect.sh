@@ -22,8 +22,13 @@ detect_environment() {
   RAM_MB="$(awk '/^MemTotal:/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null)"
   [ -n "$RAM_MB" ] || RAM_MB=4096
 
-  # repo path segment (musl lives under /current/musl)
-  if [ "$LIBC" = musl ]; then REPO_SEG="musl"; else REPO_SEG=""; fi
+  # repository path segment: x86_64 is flat (/current), x86_64-musl lives
+  # under /current/musl, aarch64 (glibc and musl) under /current/aarch64
+  case "$arch" in
+    x86_64)      REPO_SEG="" ;;
+    x86_64-musl) REPO_SEG="musl" ;;
+    *)           REPO_SEG="${arch%%-musl}" ;;
+  esac
 
   verb "detected: uefi=$UEFI arch=$arch libc=$LIBC ram=${RAM_MB}MB ucode=${UCODE[*]:-none}"
 }
@@ -49,7 +54,8 @@ TEST_MIRRORS="https://repo-default.voidlinux.org https://repo-fastly.voidlinux.o
 pick_fastest_mirror() {
   command -v curl >/dev/null 2>&1 || return 1
   local url t best="" best_t=""
-  local probe="${XBPS_ARCH%%-*}-repodata"
+  # repodata is named after the full arch: x86_64-repodata, x86_64-musl-repodata ...
+  local probe="${XBPS_ARCH:-x86_64}-repodata"
   for url in $TEST_MIRRORS; do
     printf '    testing %s ... ' "$url" >&2
     t="$(curl -sf -m 6 -r 0-200000 -o /dev/null -w '%{time_total}' \
@@ -64,5 +70,5 @@ pick_fastest_mirror() {
 # mirror_reachable <base> -> 0/1
 mirror_reachable() {
   command -v curl >/dev/null 2>&1 || return 0   # no curl: assume yes, xbps will complain otherwise
-  curl -sf -m 8 -r 0-0 -o /dev/null "$(repo_url "$1")/${XBPS_ARCH%%-*}-repodata" >/dev/null 2>&1
+  curl -sf -m 8 -r 0-0 -o /dev/null "$(repo_url "$1")/${XBPS_ARCH:-x86_64}-repodata" >/dev/null 2>&1
 }
