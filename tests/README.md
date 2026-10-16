@@ -29,6 +29,16 @@ and the matugen fallback degrade to warnings when offline.
   dracut crypt config, the greetd `dbus-run-session` wrapper,
   Hyprland/Waybar/Wofi configs, and the Hyprland community-repo
   enable/cleanup.
+- **Scenario C** (`dry_wizard.sh`) — the interactive wizard (the default
+  `voidc` path) driven without a terminal: a fake `dialog` in `/tmp/wizbin`
+  consumes one answer line per prompt from `/tmp/wiz_answers.txt` and logs
+  every call to `/tmp/wiz_dialogs.log` (so a wiring mistake shows up as a
+  desynchronized queue). The scripted session types a hostname/user, both
+  password boxes, picks i3, checks a subset of extras, and drives every menu
+  and confirmation — verifying that the *typed* answers land in the target
+  (hostname, chpasswd ×2, keymap `de`, locale, checklist services on/off),
+  that exactly 30 dialogs and 2 gauges are used, and that the queue is
+  drained (no prompt missed, none extra).
 - **`check_dry.sh`** — ~90 assertions over the produced target filesystems,
   installer logs and stub-call logs. Arch/libc aware.
 - **`matugen-fallback.sh`** — unit test for the GitHub release fallback
@@ -52,8 +62,9 @@ and the matugen fallback degrade to warnings when offline.
 - The `xbps-uhelper` stub fails on purpose, so arch/libc detection falls back
   to `uname -m` + the musl loader check — the same code path used on systems
   without xbps. Expectations adapt to `uname -m` and glibc/musl.
-- Logs: `/tmp/dry_a.log`, `/tmp/dry_b.log`; stub calls: `/tmp/stub_a.log`,
-  `/tmp/stub_b.log`.
+- Logs: `/tmp/dry_a.log`, `/tmp/dry_b.log`, `/tmp/dry_wizard.log`; stub calls:
+  `/tmp/stub_a.log`, `/tmp/stub_b.log`, `/tmp/stub_w.log`; wizard dialog
+  calls: `/tmp/wiz_dialogs.log`.
 
 ## CI
 

@@ -7,7 +7,10 @@
 #
 #   scenario A: voidc --auto   BIOS + ext4 + i3 + greetd + autostart + extras
 #   scenario B: UEFI + LUKS2 + hyprland + greetd (mirrors run_auto())
-#   then ~90 assertions + the matugen fallback unit test
+#   scenario C: the interactive wizard driven by a fake `dialog` and a
+#               scripted answer queue (typed hostname/user/passwords, menus,
+#               checklist, confirmations)
+#   then ~140 assertions + the matugen fallback unit test
 #
 # Sandbox relaxations (applied to the /tmp/drysrc copy only, never this repo):
 #   * [ -b "$DISK" ] -> [ -e "$DISK" ] because containers cannot create
@@ -41,6 +44,8 @@ echo "== scenario A: BIOS + i3 (log: /tmp/dry_a.log)"
 bash "$SELF/dry_a.sh" >/dev/null || { echo "SCENARIO A FAILED"; exit 1; }
 echo "== scenario B: UEFI + LUKS2 + hyprland (log: /tmp/dry_b.log)"
 bash "$SELF/dry_b.sh" >/dev/null || { echo "SCENARIO B FAILED"; exit 1; }
+echo "== scenario C: interactive wizard (fake dialog)"
+bash "$SELF/dry_wizard.sh" || { echo "SCENARIO C (WIZARD) FAILED"; exit 1; }
 
 echo "== assertions"
 bash "$SELF/check_dry.sh" || exit 1

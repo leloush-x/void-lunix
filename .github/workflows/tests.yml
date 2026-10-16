@@ -47,7 +47,7 @@ jobs:
       - name: Update xbps (the image ships an old version)
         run: xbps-install -Syu xbps
       - name: Install test tools
-        run: xbps-install -Sy bash curl git coreutils findutils gzip tar sed grep
+        run: xbps-install -Sy bash curl git coreutils findutils gzip tar sed grep tzdata
       - name: Clone (actions/checkout's node runtime does not run on musl)
         run: git clone --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" .
       - name: Run sandboxed installer test suite
