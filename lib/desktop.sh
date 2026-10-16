@@ -11,8 +11,8 @@ DUAL_STACK="kde gnome"
 _x_base="xorg xinit dbus elogind polkit mesa-dri xdg-user-dirs xdg-utils bash-completion unzip wget"
 _wl_base="dbus elogind polkit mesa-dri xorg-server-xwayland xdg-user-dirs xdg-utils bash-completion unzip wget pipewire wireplumber"
 
-# ricing stack for tiling WMs (matugen handled separately)
-_rice_x="i3status picom alacritty rofi polybar dunst feh pamixer pavucontrol polkit-gnome lxappearance maim slop brightnessctl git curl"
+# ricing stack for tiling WMs
+_rice_x="i3status picom alacritty rofi polybar dunst feh pamixer pavucontrol polkit-gnome lxappearance maim slop brightnessctl git curl matugen"
 
 desktop_pkgs() {
   case "$DESKTOP" in
@@ -30,9 +30,9 @@ desktop_pkgs() {
     budgie)   printf '%s\n' "$_x_base budgie-desktop gnome-terminal nautilus firefox-esr" ;;
     kde)      printf '%s\n' "$_x_base plasma-desktop konsole dolphin firefox-esr" ;;
     gnome)    printf '%s\n' "$_x_base gnome gnome-terminal firefox-esr" ;;
-    sway)     printf '%s\n' "$_wl_base sway swaybg swayidle swaylock Waybar wofi mako foot wl-clipboard grim slurp brightnessctl xdg-desktop-portal-wlr" ;;
-    niri)     printf '%s\n' "$_wl_base niri xwayland-satellite swayidle swaylock swaybg Waybar wofi mako foot wl-clipboard grim slurp brightnessctl xdg-desktop-portal-gtk" ;;
-    hyprland) printf '%s\n' "$_wl_base hyprland hyprpaper hypridle hyprlock hyprpicker xdg-desktop-portal-hyprland xdg-desktop-portal-gtk hyprpolkitagent Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl qt6ct" ;;
+    sway)     printf '%s\n' "$_wl_base sway swaybg swayidle swaylock Waybar wofi mako foot wl-clipboard grim slurp brightnessctl xdg-desktop-portal-wlr matugen" ;;
+    niri)     printf '%s\n' "$_wl_base niri xwayland-satellite swayidle swaylock swaybg Waybar wofi mako foot wl-clipboard grim slurp brightnessctl xdg-desktop-portal-gtk matugen" ;;
+    hyprland) printf '%s\n' "$_wl_base hyprland hyprpaper hypridle hyprlock hyprpicker xdg-desktop-portal-hyprland xdg-desktop-portal-gtk hyprpolkitagent Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl qt6ct matugen" ;;
     river)    printf '%s\n' "$_wl_base river xdg-desktop-portal-wlr Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl polkit-gnome" ;;
     wayfire)  printf '%s\n' "$_wl_base wayfire wf-shell xdg-desktop-portal-wlr Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl polkit-gnome" ;;
     labwc)    printf '%s\n' "$_wl_base labwc xdg-desktop-portal-wlr Waybar wofi mako foot wl-clipboard grim slurp swaybg brightnessctl polkit-gnome" ;;

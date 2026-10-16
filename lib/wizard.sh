@@ -32,6 +32,7 @@ wizard_preflight() {
     fi
   fi
   detect_environment
+  check_firmware_support
 }
 
 step_welcome() {
@@ -93,30 +94,92 @@ step_luks() {
   fi
 }
 
-step_identity() {
-  HOSTNAME="$(ui_input "Hostname:" 9 60 "void")" || wizard_abort
-  printf '%s' "$HOSTNAME" | grep -qE '^[a-z0-9][a-z0-9-]*$' \
-    || die "Invalid hostname: $HOSTNAME"
+# ---------------------------------------------------------------- identity ---
+# Each field re-prompts on invalid input and can be changed later from the
+# review menu in step_identity.
+ask_hostname() {
+  local v
+  while :; do
+    v="$(ui_input "Hostname (lowercase letters, digits, dashes):" 9 64 "${HOSTNAME:-void}")" || wizard_abort
+    if printf '%s' "$v" | grep -qE '^[a-z0-9][a-z0-9-]*$'; then HOSTNAME="$v"; return 0; fi
+    ui_msg "Invalid hostname: '$v'\n\nUse lowercase letters, digits and dashes,\nand start with a letter or digit." 10 62
+  done
+}
 
-  TIMEZONE="$(ui_input "Timezone (e.g. Europe/Berlin, UTC):" 9 60 "UTC")" || wizard_abort
-  [ -f "/usr/share/zoneinfo/$TIMEZONE" ] || die "Unknown timezone: $TIMEZONE"
+ask_username() {
+  local v
+  while :; do
+    v="$(ui_input "Username:" 9 60 "${USERNAME:-void}")" || wizard_abort
+    if printf '%s' "$v" | grep -qE '^[a-z_][a-z0-9_-]*$'; then USERNAME="$v"; return 0; fi
+    ui_msg "Invalid username: '$v'\n\nUse lowercase letters, digits, '_' and '-',\nstarting with a letter or '_'." 10 62
+  done
+}
 
-  KEYMAP="$(ui_input "Console/X keyboard layout (e.g. us, de, fr):" 9 60 "us")" || wizard_abort
+ask_timezone() {
+  local v
+  while :; do
+    v="$(ui_input "Timezone (e.g. Europe/Berlin, UTC):" 9 60 "${TIMEZONE:-UTC}")" || wizard_abort
+    if [ -f "/usr/share/zoneinfo/$v" ]; then TIMEZONE="$v"; return 0; fi
+    ui_msg "Unknown timezone: '$v'.\n\nExamples: UTC, Europe/Berlin, America/New_York\n(full list in /usr/share/zoneinfo)." 11 66
+  done
+}
 
+ask_keymap() {
+  KEYMAP="$(ui_input "Console/X keyboard layout (e.g. us, de, fr, tr):" 9 64 "${KEYMAP:-us}")" || wizard_abort
+  [ -n "$KEYMAP" ] || KEYMAP="us"
+}
+
+ask_locale() {
   LOCALE="$(ui_menu "System locale:" 12 60 2 \
     "en_US.UTF-8" "English (US)" \
     "C.UTF-8"     "Minimal, no translation")" || wizard_abort
+}
 
-  USERNAME="$(ui_input "Username:" 9 60 "void")" || wizard_abort
-  printf '%s' "$USERNAME" | grep -qE '^[a-z_][a-z0-9_-]*$' \
-    || die "Invalid username: $USERNAME"
-
-  ROOT_PASS="$(ask_password_twice "Root password" || wizard_abort)"
-  if ui_yesno "Use the same password for user '$USERNAME'?" 8 60; then
+ask_passwords() {
+  # ESC in a password box re-prompts; Ctrl-C cancels the installer.
+  ROOT_PASS=""
+  while [ -z "$ROOT_PASS" ]; do
+    ROOT_PASS="$(ask_password_twice "Root password" || true)"
+  done
+  if ui_yesno "Use the same password for user '$USERNAME'?" 8 64; then
     USER_PASS="$ROOT_PASS"
   else
-    USER_PASS="$(ask_password_twice "Password for $USERNAME" || wizard_abort)"
+    USER_PASS=""
+    while [ -z "$USER_PASS" ]; do
+      USER_PASS="$(ask_password_twice "Password for $USERNAME" || true)"
+    done
   fi
+}
+
+step_identity() {
+  ask_hostname
+  ask_username
+  ask_passwords
+  ask_timezone
+  ask_keymap
+  ask_locale
+
+  # review loop — re-type any of it before continuing
+  local choice
+  while :; do
+    choice="$(ui_menu "Review your account settings:" 18 74 8 \
+      "hostname"  "Hostname:  $HOSTNAME" \
+      "username"  "Username:  $USERNAME" \
+      "passwords" "Passwords: root + $USERNAME" \
+      "timezone"  "Timezone:  $TIMEZONE" \
+      "keymap"    "Keymap:    $KEYMAP" \
+      "locale"    "Locale:    $LOCALE" \
+      "done"      "Continue ->")" || wizard_abort
+    case "$choice" in
+      hostname)  ask_hostname ;;
+      username)  ask_username ;;
+      passwords) ask_passwords ;;
+      timezone)  ask_timezone ;;
+      keymap)    ask_keymap ;;
+      locale)    ask_locale ;;
+      done)      break ;;
+    esac
+  done
 }
 
 step_session() {
