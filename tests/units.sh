@@ -29,6 +29,8 @@ LOGFILE="$W/units.log"
 . "$ROOT/lib/configure.sh"
 # shellcheck disable=SC1091
 . "$ROOT/lib/wizard.sh"
+# shellcheck disable=SC1091
+. "$ROOT/lib/auto.sh"
 
 # ---------------------------------------------------------------- keymap ----
 echo "== keymap -> XKB translation =="
@@ -66,6 +68,45 @@ check "LUKS enabled"              [ "$LUKS" = yes ]
 check "passphrase captured"       [ "$LUKS_PASSWORD" = secretpass ]
 check "re-prompted then accepted" [ "$(cat "$LUKS_STUB")" = 3 ]
 check "swap disabled for LUKS"    [ "$SWAP_MB" = 0 ]
+
+# ---------------------------------------------------------- swap sizing -----
+echo "== swap allocation (wizard menu) =="
+SWAP_Q="$W/swap_answers"
+SWAP_MSGS="$W/swap_msgs"; : >"$SWAP_MSGS"
+set_answers() { printf '%s\n' "$@" >"$SWAP_Q"; }
+next_answer() {  # step_swap reads ui_menu/ui_input inside $(...) — file queue
+  local a
+  a="$(head -n1 "$SWAP_Q")"
+  tail -n +2 "$SWAP_Q" >"$SWAP_Q.tmp" && mv "$SWAP_Q.tmp" "$SWAP_Q"
+  printf '%s\n' "$a"
+}
+ui_menu()  { next_answer; }
+ui_input() { next_answer; }
+ui_msg()   { echo x >>"$SWAP_MSGS"; }
+
+RAM_MB=3000;  set_answers auto;      step_swap
+check "auto uses RAM under 4 GiB"  [ "$SWAP_MB" = 3000 ]
+RAM_MB=16384; set_answers auto;      step_swap
+check "auto caps at 4 GiB"         [ "$SWAP_MB" = 4096 ]
+set_answers none;                    step_swap
+check "none disables swap"         [ "$SWAP_MB" = 0 ]
+set_answers 8192;                    step_swap
+check "8 GiB preset"               [ "$SWAP_MB" = 8192 ]
+set_answers custom bad 12 2048;      step_swap
+check "custom size accepted"       [ "$SWAP_MB" = 2048 ]
+check "custom re-prompted twice"   [ "$(grep -c x "$SWAP_MSGS")" = 2 ]
+check "answers drained"            bash -c "! test -s '$SWAP_Q'"
+
+echo "== profile swap validation =="
+die() { printf 'DIE: %s\n' "$*"; }   # validate_swap_mb calls die; keep tests alive
+acc() { validate_swap_mb "$1"; }
+rej() { ! validate_swap_mb "$1"; }
+check "accepts auto"               acc auto
+check "accepts 0"                  acc 0
+check "accepts 4096"               acc 4096
+check "rejects 4G"                 rej 4G
+check "rejects 12 (under 64 MiB)"  rej 12
+check "rejects 999999 (over max)"  rej 999999
 
 # ----------------------------------------------------------- host repos -----
 echo "== host repo conf lifecycle =="

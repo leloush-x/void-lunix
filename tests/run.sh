@@ -14,8 +14,8 @@
 #               before the disk is touched, cleaning up host repo confs
 #   scenario E: GPU_DRIVER=nvidia — nonfree auto-enabled, driver in the
 #               transaction, nvidia_drm.modeset=1 on the GRUB cmdline
-#   then ~235 assertions + unit tests (matugen fallback, filesystem matrix,
-#   xinitrc, keymap/LUKS/host-repo units), CLI smoke tests and shellcheck
+#   then ~248 assertions + unit tests (matugen fallback, filesystem matrix,
+#   xinitrc, keymap/LUKS/swap/host-repo units), CLI smoke tests and shellcheck
 #
 # Sandbox relaxations (applied to the /tmp/drysrc copy only, never this repo):
 #   * [ -b "$DISK" ] -> [ -e "$DISK" ] because containers cannot create

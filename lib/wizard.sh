@@ -71,18 +71,32 @@ step_filesystem() {
 }
 
 step_swap() {
+  # auto = system RAM capped at 4 GiB (same rule as --auto mode's default)
   local auto_mb=$(( RAM_MB < 4096 ? RAM_MB : 4096 ))
-  [ "$auto_mb" -gt 8192 ] && auto_mb=8192
   local choice
-  choice="$(ui_menu "Swap partition size? (RAM: ${RAM_MB} MiB)" 15 60 5 \
+  choice="$(ui_menu "Swap partition size? (RAM: ${RAM_MB} MiB)" 15 60 6 \
     "auto" "Auto: ${auto_mb} MiB" \
     "none" "No swap partition" \
     "2048" "2 GiB" \
     "4096" "4 GiB" \
-    "8192" "8 GiB")" || wizard_abort
+    "8192" "8 GiB" \
+    "custom" "Custom size (MiB)")" || wizard_abort
   case "$choice" in
     none) SWAP_MB=0 ;;
     auto) SWAP_MB=$auto_mb ;;
+    custom)
+      local v
+      while :; do
+        v="$(ui_input "Swap size in MiB (64-65536):" 9 60 "4096")" || wizard_abort
+        case "$v" in
+          ''|*[!0-9]*)
+            ui_msg "Invalid size: '$v'\n\nEnter a whole number of MiB (64-65536)." 10 62 ;;
+          *)
+            if [ "$v" -ge 64 ] && [ "$v" -le 65536 ]; then SWAP_MB="$v"; break; fi
+            ui_msg "Out of range: '$v'\n\nUse 64-65536 MiB." 10 62 ;;
+        esac
+      done
+      ;;
     *)    SWAP_MB="$choice" ;;
   esac
 }

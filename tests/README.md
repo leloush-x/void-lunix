@@ -65,10 +65,12 @@ installed in CI.
   user dotfiles) is never overwritten.
 - **`units.sh`** — unit tests for: console keymap → XKB translation
   (`uk`→`gb`, `de-latin1`→`de`), the LUKS passphrase re-prompt loop (two
-  cancels, then a real passphrase; swap disabled), the host repo conf
-  lifecycle (nonfree/multilib URLs for glibc and musl, Hyprland repo conf,
-  cleanup — confs go to a temp dir via `HOST_XBPS_DIR`), and every shipped
-  profile (parses and declares `DISK`).
+  cancels, then a real passphrase; swap disabled), swap allocation (wizard
+  auto/preset/custom sizing with invalid-input re-prompts, and profile
+  `SWAP_MB` validation `auto|0|64..65536`), the host repo conf lifecycle
+  (nonfree/multilib URLs for glibc and musl, Hyprland repo conf, cleanup —
+  confs go to a temp dir via `HOST_XBPS_DIR`), and every shipped profile
+  (parses and declares `DISK`).
 - **`smoke.sh`** — CLI surface: `--version`/`--help` exit 0 with the right
   output, unknown flags exit non-zero, and `--check` produces the environment
   report.

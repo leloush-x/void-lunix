@@ -32,7 +32,8 @@ package transaction.
   `efibootmgr`, `cryptsetup`) hard-fail the install instead — before the disk
   is touched — rather than yield an unbootable system.
 - **Automatic microcode + firmware** (intel/amd-ucode, linux-firmware).
-- **Filesystems**: ext4, btrfs, XFS or F2FS, optional swap, optional **LUKS2** root.
+- **Filesystems**: ext4, btrfs, XFS or F2FS, optional swap (auto/preset/custom
+  size), optional **LUKS2** root.
 - **Bootloader**: GRUB for UEFI and BIOS, generated for your layout.
 - **User setup**: sudo/wheel user, services enabled (dbus, elogind,
   NetworkManager, rtkit), keyboard for console + X.
@@ -208,6 +209,9 @@ tests/                sandboxed end-to-end dry run (tests/run.sh)
 - **Wayland sessions** pull in XWayland so X11 apps keep working.
 - **LUKS**: only the root filesystem is encrypted; `/boot` stays unencrypted
   (single passphrase prompt at boot). Swap is disabled when LUKS is on.
+- **Swap**: `auto` = system RAM capped at 4 GiB; presets are 2/4/8 GiB or a
+  typed custom size of 64-65536 MiB. Swap serves memory pressure only —
+  suspend-to-disk is not configured (no `resume=` kernel parameter).
 - **BIOS installs** create a 1 MiB `bios_grub` partition for GRUB.
 - **Every device is `wipefs`-cleaned** — the disk and each new partition —
   before formatting, so leftover RAID/LVM/LUKS signatures can't survive.

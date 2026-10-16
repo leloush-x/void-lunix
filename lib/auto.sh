@@ -31,6 +31,20 @@ auto_defaults() {
   fi
 }
 
+# SWAP_MB: "auto" | 0 (off) | whole number of MiB, 64..65536.
+# Anything else used to slip through and silently produce no swap partition.
+validate_swap_mb() {
+  local v="$1"
+  [ "$v" = auto ] && return 0
+  case "$v" in
+    ''|*[!0-9]*) die "SWAP_MB must be 'auto', 0 or a whole number of MiB (got: '$v')."; return 1 ;;
+  esac
+  [ "$v" -eq 0 ] && return 0
+  [ "$v" -ge 64 ] && [ "$v" -le 65536 ] && return 0
+  die "SWAP_MB must be 0 (off) or 64-65536 MiB (got: $v)."
+  return 1
+}
+
 auto_validate() {
   [ -n "${DISK:-}" ] || die "Profile error: DISK is required."
   [ -b "$DISK" ] || die "Not a block device: $DISK"
@@ -49,6 +63,7 @@ auto_validate() {
   USER_PASS="${USER_PASS:-$ROOT_PASS}"
   [ -f "/usr/share/zoneinfo/$TIMEZONE" ] || die "Unknown TIMEZONE: $TIMEZONE"
   [ "$LUKS" = yes ] && [ -z "$LUKS_PASSWORD" ] && die "LUKS=yes requires LUKS_PASSWORD."
+  validate_swap_mb "$SWAP_MB"
   [ "$LUKS" = yes ] && [ "$SWAP_MB" != 0 ] && { SWAP_MB=0; warnlog "LUKS enabled: swap disabled."; }
   if [ "$SWAP_MB" = auto ]; then
     if [ "$RAM_MB" -lt 4096 ]; then SWAP_MB="$RAM_MB"; else SWAP_MB=4096; fi
