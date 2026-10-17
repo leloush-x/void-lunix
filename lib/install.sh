@@ -60,6 +60,8 @@ prepare_target() {
 
   # repository configuration (host confs added earlier — nonfree, multilib,
   # desktop extra repo — are copied along; skip live-media/local repos)
+  # start clean so a re-run after a partial failure can't mix stale confs
+  rm -f "$TARGET/etc/xbps.d"/*.conf 2>/dev/null || true
   local f base
   for f in /etc/xbps.d/*.conf; do
     [ -e "$f" ] || continue
@@ -141,7 +143,13 @@ resolve_pkgs() {
   verb "requested packages: $requested"
 
   say "Syncing package index"
-  run "Syncing xbps index" xbps-install -S
+  local sync_ok=no i
+  for i in 1 2 3; do
+    if xbps-install -S >>"$LOGFILE" 2>&1; then sync_ok=yes; break; fi
+    warnlog "xbps index sync attempt $i failed"
+    sleep 2
+  done
+  [ "$sync_ok" = yes ] || die "Syncing xbps index failed — check network (see $LOGFILE)"
 
   local pkg
   PKGS=""; PKGS_SKIPPED=""

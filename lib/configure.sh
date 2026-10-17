@@ -71,6 +71,7 @@ EOF
 }
 
 write_timezone() {
+  case "$TIMEZONE" in /*|*..*) die "Invalid timezone: $TIMEZONE" ;; esac
   [ -f "$TARGET/usr/share/zoneinfo/$TIMEZONE" ] || die "Unknown timezone: $TIMEZONE"
   run "Linking localtime" ln -sf "/usr/share/zoneinfo/$TIMEZONE" "$TARGET/etc/localtime"
   printf '%s\n' "$TIMEZONE" >"$TARGET/etc/timezone"
@@ -94,6 +95,7 @@ create_users() {
   mkdir -p "$TARGET/etc/sudoers.d"
   printf '%%wheel ALL=(ALL:ALL) ALL\nDefaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/bin:/bin"\n' \
     >"$TARGET/etc/sudoers.d/10-wheel"
+  chown root:root "$TARGET/etc/sudoers.d/10-wheel" 2>/dev/null || true
   chmod 0440 "$TARGET/etc/sudoers.d/10-wheel"
   chmod 0750 "$TARGET/etc/sudoers.d" 2>/dev/null || true
   if [ "${AUTOSTART_DESKTOP:-no}" = yes ]; then
@@ -101,6 +103,8 @@ create_users() {
     if desktop_uses_startx; then
       acmd="startx"
     elif desktop_uses_wayland; then
+      acmd="dbus-run-session -- $(desktop_session_cmd)"
+    elif [ "$DESKTOP" != none ] && [ "$DESKTOP" != custom ]; then
       acmd="dbus-run-session -- $(desktop_session_cmd)"
     fi
     if [ -n "$acmd" ]; then

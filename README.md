@@ -6,7 +6,7 @@ package transaction.
 
 ```
  ============================
-  Void Custom Installer v1.0
+  Void Custom Installer v1.1.0
  ============================
   - GPT partitioning (UEFI + BIOS), optional LUKS
   - Single-transaction package install (fast)
@@ -84,6 +84,32 @@ $EDITOR my.conf                    # set DISK, passwords, etc.
 
 See `profiles/` for every supported key.
 
+> **Security note:** profiles are sourced as shell (`voidc --auto foo.conf`
+> runs `. foo.conf`), so only run profiles you trust — they can execute
+> arbitrary commands as root. Leave `ROOT_PASS`/`USER_PASS`/`LUKS_PASSWORD`
+> out of any profile you share; never commit real passwords.
+
+## Testing in a VM (recommended before real hardware)
+
+The sandboxed suite (`tests/run.sh`) never touches a real disk, so the only
+way to validate a full install is a VM. Minimum: 2 GiB RAM, 10 GiB disk,
+UEFI or BIOS firmware.
+
+```sh
+# example with QEMU (UEFI)
+qemu-img create -f qcow2 voidc.qcow2 12G
+qemu-system-x86_64 -enable-kvm -m 2048 -smp 2 \
+  -drive if=pflash,format=raw,readonly=on,file=/usr/share/ovmf/OVMF.fd \
+  -cdrom void-live-x86_64-*.iso -drive file=voidc.qcow2,format=qcow2 \
+  -boot d
+```
+
+Boot the live ISO, run `voidc --check`, then `voidc`. Logs land in
+`/tmp/voidc-*.log` on the medium and `/var/log/voidc-install.log` in the
+installed system. If the VM fails to boot, check Secure Boot (disable it),
+the firmware mode (BIOS vs UEFI must match the install), and the LUKS
+passphrase keyboard layout (the console defaults to US).
+
 ## Environment check (no changes)
 
 ```sh
@@ -105,7 +131,7 @@ scenario C (the interactive wizard driven through a fake `dialog` with a
 scripted answer queue — typed hostname/passwords, menus, checklist), scenario
 D (a missing critical package must abort before the disk is touched) and
 scenario E (NVIDIA: nonfree auto-enabled, driver in the transaction,
-`nvidia_drm.modeset=1` on the GRUB cmdline), then ~235 assertions over the
+`nvidia_drm.modeset=1` on the GRUB cmdline), then ~248 assertions over the
 produced target, installer logs and stub calls, plus unit tests (matugen
 release fallback, filesystem matrix, `~/.xinitrc` generation, keymap → XKB
 translation, the LUKS re-prompt loop, host repo URLs/cleanup), CLI smoke
@@ -181,7 +207,9 @@ tests/                sandboxed end-to-end dry run (tests/run.sh)
   you pick Hyprland it enables that repo on the live system *and* in the
   installed system — with the right branch for your libc
   (x86_64 × glibc/musl) — so `hyprland`, `hyprpaper`, `hypridle`,
-  `hyprlock` and `xdg-desktop-portal-hyprland` install normally. This is
+  `xdg-desktop-portal-hyprland` install normally; `hyprlock` is usually *not*
+  available in the community repo and is skipped (install it later from the
+  Void repos or build it). This is
   third-party software not shipped by Void: use it only if you trust it.
 - **Hyprland seat errors**: if Hyprland reports a seat/DRM permission error,
   enable seatd (`ln -s /etc/sv/seatd /var/service`), start it and add your
@@ -212,6 +240,10 @@ tests/                sandboxed end-to-end dry run (tests/run.sh)
 - **Swap**: `auto` = system RAM capped at 4 GiB; presets are 2/4/8 GiB or a
   typed custom size of 64-65536 MiB. Swap serves memory pressure only —
   suspend-to-disk is not configured (no `resume=` kernel parameter).
+- **Profiles are sourced as shell** (`voidc --auto foo.conf` runs `. foo.conf`),
+  so only use profiles you trust — they can run arbitrary commands. In
+  unattended mode multilib is auto-enabled on glibc x86_64 when a desktop or
+  the NVIDIA driver is selected.
 - **BIOS installs** create a 1 MiB `bios_grub` partition for GRUB.
 - **Every device is `wipefs`-cleaned** — the disk and each new partition —
   before formatting, so leftover RAID/LVM/LUKS signatures can't survive.

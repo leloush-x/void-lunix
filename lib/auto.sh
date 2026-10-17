@@ -21,7 +21,12 @@ auto_defaults() {
   : "${MIRROR:=auto}"
   : "${DOTFILES_URL:=}"
   : "${RUN_DOTFILES_INSTALL:=no}"
-  if [ "$XBPS_ARCH" = x86_64 ] && ! in_list multilib "$EXTRAS"; then
+  # multilib is needed for 32-bit apps and for nvidia-libs-32bit; auto-enable
+  # it on glibc x86_64 unless the user opted out (EXTRAS already lists
+  # multilib) or this is a minimal/server install with no 32-bit needs.
+  if [ "$XBPS_ARCH" = x86_64 ] && \
+     { [ "${DESKTOP:-none}" != none ] || [ "${GPU_DRIVER:-auto}" = nvidia ]; } && \
+     ! in_list multilib "$EXTRAS"; then
     EXTRAS+=" multilib"
     warnlog "x86_64 glibc: multilib repo enabled automatically"
   fi
@@ -62,8 +67,23 @@ auto_validate() {
   [ -n "${USER_PASS:-${ROOT_PASS:-}}" ] || die "Profile error: USER_PASS is required."
   USER_PASS="${USER_PASS:-$ROOT_PASS}"
   [ -f "/usr/share/zoneinfo/$TIMEZONE" ] || die "Unknown TIMEZONE: $TIMEZONE"
+  case "$TIMEZONE" in /*|*..*|*[!A-Za-z0-9._/-]*) die "Invalid TIMEZONE: $TIMEZONE." ;; esac
   [ "$LUKS" = yes ] && [ -z "$LUKS_PASSWORD" ] && die "LUKS=yes requires LUKS_PASSWORD."
+  case "${LOCALE:-}" in ''|*[!A-Za-z0-9._-]*) die "Invalid LOCALE: ${LOCALE:-}." ;; esac
+  case "${KEYMAP:-}" in ''|*[!A-Za-z0-9_-]*) die "Invalid KEYMAP: ${KEYMAP:-}." ;; esac
+  case "${MIRROR:-}" in
+    auto|default) ;;
+    http://*|https://*) case "$MIRROR" in *[[:space:]]*) die "Invalid MIRROR: contains whitespace." ;; esac ;;
+    *) die "MIRROR must be 'auto', 'default' or an http(s) URL: ${MIRROR:-}." ;;
+  esac
   validate_swap_mb "$SWAP_MB"
+  if [ "$DESKTOP" = custom ]; then
+    [ -n "${CUSTOM_PKGS:-}" ] || die "DESKTOP=custom requires CUSTOM_PKGS."
+    local cp
+    for cp in $CUSTOM_PKGS; do
+      printf '%s' "$cp" | grep -qE '^[a-z0-9][a-z0-9._+-]*$' || die "Invalid package name in CUSTOM_PKGS: $cp."
+    done
+  fi
   [ "$LUKS" = yes ] && [ "$SWAP_MB" != 0 ] && { SWAP_MB=0; warnlog "LUKS enabled: swap disabled."; }
   if [ "$SWAP_MB" = auto ]; then
     if [ "$RAM_MB" -lt 4096 ]; then SWAP_MB="$RAM_MB"; else SWAP_MB=4096; fi
@@ -98,6 +118,7 @@ auto_resolve_mirror() {
 run_auto() {
   local cfg="$1"
   [ -f "$cfg" ] || die "Profile not found: $cfg"
+  [ "$(id -u)" -eq 0 ] || die "Please run as root (or use sudo)."
 
   # read by the shared ui helpers (common.sh) and the wizard
   # shellcheck disable=SC2034
@@ -125,7 +146,7 @@ run_auto() {
   finalize_system
   install_bootloader
   desktop_setup
-  run "Saving install log" cp "$LOGFILE" "$TARGET/var/log/voidc-install.log"
+  run "Saving install log" install -m 0640 "$LOGFILE" "$TARGET/var/log/voidc-install.log"
   disable_host_extra_repo
   sync
 

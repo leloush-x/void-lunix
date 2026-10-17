@@ -84,8 +84,8 @@ chmod 0755 /tmp/wizbin/dialog /tmp/wizbin/lsblk
 #   welcome | session | disk | disk-confirm | filesystem | swap | LUKS? |
 #   hostname | username | root-pass x2 | same-pass-for-user? | timezone |
 #   keymap | locale | identity-review | desktop | extras-checklist |
-#   autostart? | dotfiles? | GPU | login-manager | mirror | summary |
-#   start? | [2 gauges: no answers] | complete | reboot? | unmount-note
+#   autostart? | dotfiles? | GPU | login-manager | greetd-warning? |
+#   mirror | summary | start? | [2 gauges: no answers] | complete | reboot? | unmount-note
 cat >/tmp/wiz_answers.txt <<'EOF'
 ok
 any
@@ -109,6 +109,7 @@ yes
 no
 auto
 greetd
+ok
 default
 ok
 yes
@@ -148,7 +149,7 @@ echo "== wizard assertions (fake dialog) =="
 check "wizard exit status"      test "$rc" -eq 0
 check "answer queue drained"    bash -c "! test -s '$WIZ_ANSWERS'"
 check "no desync in stderr"     bash -c "! grep -q 'answer queue EMPTY' /tmp/dry_wizard.err"
-check "dialog calls == 30"      test "$(wc -l <"$WIZ_DLG_LOG")" -eq 30
+check "dialog calls == 31"      test "$(wc -l <"$WIZ_DLG_LOG")" -eq 31
 check "2 gauges ran"            test "$(grep -c '^gauge' "$WIZ_DLG_LOG")" -eq 2
 check "hostname typed"          grep -qx "wizbox" "$W/etc/hostname"
 check "useradd filtered groups" grep -q "useradd -m -U -G wheel,audio,video,kvm,cdrom -s /bin/bash $U" "$STUB_LOG"

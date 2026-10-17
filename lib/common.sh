@@ -5,6 +5,9 @@
 : "${LOGFILE:=/tmp/voidc.log}"
 : "${TARGET:=/mnt}"
 : "${VOIDC_VERSION:=0.0.0}"
+# keep the log private (it may contain system details)
+touch "$LOGFILE" 2>/dev/null
+chmod 600 "$LOGFILE" 2>/dev/null || true
 
 # ------------------------------------------------------------------ logging --
 _ts() { date '+%Y-%m-%d %H:%M:%S'; }
@@ -18,8 +21,15 @@ note() { printf '    %s\n' "$*" >&2; }
 die() {
   printf '\n\033[1;31m!! %s\033[0m\n   Log: %s\n' "$*" "$LOGFILE" >&2
   log "FATAL: $*"
+  # best-effort copy of the log into the target so it survives a reboot
+  if [ -n "${TARGET:-}" ] && [ -d "$TARGET" ]; then
+    mkdir -p "$TARGET/var/log" 2>/dev/null
+    cp "$LOGFILE" "$TARGET/var/log/voidc-install.log" 2>/dev/null || true
+  fi
   # drop live-system repo confs voidc may have added (install.sh provides this)
   if declare -F disable_host_extra_repo >/dev/null; then disable_host_extra_repo; fi
+  # unmount partial target so a retry is possible
+  if declare -F unmount_all >/dev/null; then unmount_all; fi
   exit 1
 }
 
@@ -82,7 +92,42 @@ first_service() { # first_service svc1 svc2 ... -> prints first existing name
 }
 
 # ------------------------------------------------------------------ dialog ---
-DLG_OPTS=(--backtitle "voidc $VOIDC_VERSION — fast Void installer" --title " Void Custom Installer " --colors)
+# A single, restrained theme: one accent colour (cyan), flat boxes (no
+# shadow), dark background. Written once to a temp file and pointed at via
+# DIALOGRC so every dialog call is consistent without touching the system.
+DIALOGRC_FILE="$(mktemp 2>/dev/null)" || DIALOGRC_FILE="/tmp/voidc-dialogrc.$$"
+cat >"$DIALOGRC_FILE" 2>/dev/null <<'EOF' || true
+use_shadow = OFF
+use_colors = ON
+screen_color = (WHITE,BLACK,ON)
+dialog_color = (WHITE,BLACK,ON)
+title_color = (CYAN,BLACK,ON)
+border_color = (WHITE,BLACK,ON)
+button_active_color = (BLACK,CYAN,ON)
+button_inactive_color = (WHITE,BLACK,ON)
+button_key_active_color = (BLACK,CYAN,ON)
+button_key_inactive_color = (CYAN,BLACK,ON)
+button_label_active_color = (BLACK,CYAN,ON)
+button_label_inactive_color = (WHITE,BLACK,ON)
+inputbox_color = (WHITE,BLACK,ON)
+inputbox_border_color = (WHITE,BLACK,ON)
+menubox_color = (WHITE,BLACK,ON)
+menubox_border_color = (WHITE,BLACK,ON)
+item_color = (WHITE,BLACK,ON)
+item_selected_color = (BLACK,CYAN,ON)
+tag_color = (CYAN,BLACK,ON)
+tag_selected_color = (BLACK,CYAN,ON)
+tag_key_color = (CYAN,BLACK,ON)
+tag_key_selected_color = (BLACK,CYAN,ON)
+check_color = (WHITE,BLACK,ON)
+check_selected_color = (BLACK,CYAN,ON)
+uarrow_color = (CYAN,BLACK,ON)
+darrow_color = (CYAN,BLACK,ON)
+position_indicator_color = (CYAN,BLACK,ON)
+gauge_color = (WHITE,BLACK,ON)
+EOF
+[ -s "$DIALOGRC_FILE" ] && export DIALOGRC="$DIALOGRC_FILE"
+DLG_OPTS=(--backtitle "voidc $VOIDC_VERSION — Void Linux installer" --title " Void Custom Installer " --colors --no-shadow)
 
 ui_msg()   { dialog "${DLG_OPTS[@]}" --clear --msgbox "$@"; }
 ui_yesno() { dialog "${DLG_OPTS[@]}" --clear --yesno "$@"; }

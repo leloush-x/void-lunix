@@ -473,7 +473,7 @@ desktop_setup() {
     esac
     install_matugen
   }
-  desktop_uses_rice && chroot_run "chown -R $USERNAME:$USERNAME /home/$USERNAME"
+  chroot_try "chown -R $USERNAME:$USERNAME /home/$USERNAME"
   ensure_xinitrc
   clone_dotfiles
   chroot_try "su -l $USERNAME -c 'xdg-user-dirs-update'"

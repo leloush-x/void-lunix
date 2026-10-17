@@ -14,6 +14,7 @@ wizard_abort() {
   local rc=$?
   printf '\n\033[1;33mInstallation cancelled.\033[0m\n' >&2
   if declare -F disable_host_extra_repo >/dev/null; then disable_host_extra_repo; fi
+  if declare -F unmount_all >/dev/null; then unmount_all; fi
   exit "$rc"
 }
 
@@ -55,8 +56,11 @@ step_disk() {
   DISK="$choice"
 
   local answer
-  answer="$(ui_input "Type the disk name to confirm erasing $DISK:" 9 60 "")" || wizard_abort
-  [ "$answer" = "$DISK" ] || die "Confirmation failed (got '$answer', expected '$DISK')."
+  while :; do
+    answer="$(ui_input "Type the disk name to confirm erasing $DISK:" 9 60 "")" || wizard_abort
+    [ "$answer" = "$DISK" ] && break
+    ui_msg "Confirmation failed (got '$answer', expected '$DISK').\n\nType the full disk name exactly." 9 60
+  done
 }
 
 step_filesystem() {
@@ -103,7 +107,7 @@ step_swap() {
 
 step_luks() {
   LUKS=no
-  if ui_yesno "Encrypt the root filesystem with LUKS?\n\nYou will type this passphrase at every boot." 10 62; then
+  if ui_yesno --defaultno "Encrypt the root filesystem with LUKS?\n\nYou will type this passphrase at every boot." 10 62; then
     LUKS=yes
     # re-prompt on ESC/short/mismatch (same loop as the login passwords):
     # an empty passphrase here would silently skip encryption
@@ -149,14 +153,36 @@ ask_timezone() {
 }
 
 ask_keymap() {
-  KEYMAP="$(ui_input "Console/X keyboard layout (e.g. us, de, fr, tr):" 9 64 "${KEYMAP:-us}")" || wizard_abort
-  [ -n "$KEYMAP" ] || KEYMAP="us"
+  local v
+  while :; do
+    v="$(ui_input "Console/X keyboard layout (e.g. us, de, fr, tr):" 9 64 "${KEYMAP:-us}")" || wizard_abort
+    if printf '%s' "$v" | grep -qE '^[a-zA-Z0-9][a-zA-Z0-9_-]*$'; then
+      KEYMAP="$v"; return 0
+    fi
+    ui_msg "Invalid keymap: '$v'\n\nUse a simple name like us, de, fr, tr, uk, dvorak." 9 62
+  done
 }
 
 ask_locale() {
-  LOCALE="$(ui_menu "System locale:" 12 60 2 \
+  local choice
+  choice="$(ui_menu "System locale:" 12 60 3 \
     "en_US.UTF-8" "English (US)" \
-    "C.UTF-8"     "Minimal, no translation")" || wizard_abort
+    "C.UTF-8"     "Minimal, no translation" \
+    "custom"      "Custom (type it)")" || wizard_abort
+  case "$choice" in
+    custom)
+      local v
+      while :; do
+        v="$(ui_input "Locale (e.g. de_DE.UTF-8):" 9 60 "en_US.UTF-8")" || wizard_abort
+        [ -n "$v" ] || { ui_msg "Locale cannot be empty." 8 40; continue; }
+        if printf '%s' "$v" | grep -qE '^[A-Za-z][A-Za-z0-9._-]+$'; then
+          LOCALE="$v"; return 0
+        fi
+        ui_msg "Unknown locale: '$v'.\n\nUse a name like de_DE.UTF-8." 9 50
+      done
+      ;;
+    *) LOCALE="$choice" ;;
+  esac
 }
 
 ask_passwords() {
@@ -250,7 +276,8 @@ step_desktop() {
     CUSTOM_PKGS="$(ui_input "Space-separated package list:" 10 74 "xorg xinit i3 alacritty")" || wizard_abort
   fi
   if [ "$DESKTOP" = hyprland ]; then
-    ui_msg "Hyprland is not packaged in Void — voidc installs it from\nthe community repository (github.com/Makrennel/hyprland-void):\n\n  $(desktop_extra_repo_url)\n\nThe repo is enabled on the live system and in the target,\nthen hyprland, hyprpaper, hypridle, hyprlock and\nxdg-desktop-portal-hyprland are installed normally.\n\nThird-party software — continue only if you trust it." 19 78
+    ui_yesno --defaultno "Hyprland is not packaged in Void — voidc installs it from\nthe community repository (github.com/Makrennel/hyprland-void):\n\n  $(desktop_extra_repo_url)\n\nThe repo is enabled on the live system and in the target,\nthen hyprland, hyprpaper, hypridle, hyprlock and\nxdg-desktop-portal-hyprland are installed normally.\n\nThird-party software — continue only if you trust it." 19 78 \
+      || die "Aborted: Hyprland requires the third-party community repo."
   fi
 }
 
@@ -295,9 +322,16 @@ step_advanced() {
     "amd"    "AMD: VA-API + Vulkan (RADV)" \
     "nvidia" "NVIDIA proprietary (enables nonfree repo)" \
     "none"   "Install nothing extra")" || wizard_abort
-  if [ "$GPU_DRIVER" = nvidia ] && ! in_list nonfree "$EXTRAS"; then
-    EXTRAS+=" nonfree"
-    [ "${NO_DIALOG:-no}" = yes ] || ui_msg "nonfree repo enabled automatically for NVIDIA." 8 60
+  if [ "$GPU_DRIVER" = nvidia ]; then
+    if ! in_list nonfree "$EXTRAS"; then
+      EXTRAS+=" nonfree"
+      [ "${NO_DIALOG:-no}" = yes ] || ui_msg "nonfree repo enabled automatically for NVIDIA." 8 60
+    fi
+    # nvidia-libs-32bit lives in the multilib repo
+    if [ "${XBPS_ARCH:-x86_64}" = x86_64 ] && ! in_list multilib "$EXTRAS"; then
+      EXTRAS+=" multilib"
+      [ "${NO_DIALOG:-no}" = yes ] || ui_msg "multilib repo enabled automatically for NVIDIA (32-bit libs)." 8 60
+    fi
   fi
 
   # consumed by configure.sh (display manager setup)
@@ -309,6 +343,9 @@ step_advanced() {
     "sddm"    "SDDM (Qt, X11 + Wayland sessions)" \
     "gdm"     "GDM (GNOME, X11 + Wayland)" \
     "greetd"  "greetd + tuigreet (text greeter, Wayland-friendly)")" || wizard_abort
+  if [ "$LOGIN_MANAGER" = greetd ] && desktop_uses_startx; then
+    ui_msg "greetd + an X11 desktop runs startx inside a D-Bus session.\n\nFor X desktops lightdm/sddm/gdm are usually a better fit;\ngreetd shines on Wayland. Continuing anyway." 10 64
+  fi
 }
 
 step_mirror() {
@@ -356,7 +393,7 @@ Login:      $dm_txt   GPU: $GPU_DRIVER
 Extras:    $EXTRAS
 
 $DISK WILL BE COMPLETELY ERASED." 27 78
-  ui_yesno "Start the installation now?" 8 50 || die "Aborted before installation."
+  ui_yesno --defaultno "Start the installation now?" 8 50 || die "Aborted before installation."
 }
 
 wizard_run_install() {
@@ -376,7 +413,7 @@ wizard_run_install() {
   finalize_system
   install_bootloader
   desktop_setup
-  run "Saving install log" cp "$LOGFILE" "$TARGET/var/log/voidc-install.log"
+  run "Saving install log" install -m 0640 "$LOGFILE" "$TARGET/var/log/voidc-install.log"
   disable_host_extra_repo
   say "=== installation finished ==="
 }
@@ -408,12 +445,12 @@ Log:        /var/log/voidc-install.log
     printf '\033[1;32mRebooting...\033[0m\n'
     reboot
   else
-    ui_msg "Target left mounted at $TARGET.\nYou can chroot with:  chroot $TARGET /bin/bash" 9 64
+    ui_msg "Target left mounted at $TARGET.\nYou can chroot with:  chroot $TARGET /bin/sh" 9 64
   fi
 }
 
 run_wizard() {
-  trap wizard_abort INT
+  trap wizard_abort INT TERM HUP
   wizard_preflight
   step_welcome
   step_session

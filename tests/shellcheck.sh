@@ -10,5 +10,5 @@ command -v shellcheck >/dev/null 2>&1 || {
   exit 1
 }
 cd "$ROOT" || exit 1
-shellcheck -S warning voidc lib/*.sh tests/*.sh
+shellcheck -S warning voidc lib/*.sh tests/*.sh || exit $?
 echo "SHELLCHECK PASSED"

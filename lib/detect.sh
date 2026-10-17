@@ -66,8 +66,10 @@ detect_environment() {
 
 # list_disks -> lines "NAME SIZE MODEL"
 list_disks() {
-  lsblk -dpno NAME,SIZE,MODEL 2>/dev/null \
-    | grep -vE '/dev/(loop|zram|sr|ram|fd)' \
+  # -d: only whole disks, not their partitions (a partition is not installable)
+  lsblk -d -pno NAME,SIZE,MODEL 2>/dev/null \
+    | grep -vE '/dev/(loop|zram|sr|ram|fd|md|dm)' \
+    | grep -vE '/dev/mapper/' \
     | grep -vE '^[[:space:]]*$'
 }
 
@@ -95,6 +97,7 @@ pick_fastest_mirror() {
     t="$(curl -sf -m 6 -r 0-200000 -o /dev/null -w '%{time_total}' \
           "$(repo_url "$url")/$probe" 2>/dev/null)" || { echo "unreachable" >&2; continue; }
     [ -n "$t" ] || { echo "unreachable" >&2; continue; }
+    case "$t" in *[!0-9.]*) echo "unreachable" >&2; continue ;; esac
     printf '%ss\n' "$t" >&2
     if [ -z "$best_t" ] || awk "BEGIN{exit !($t < $best_t)}"; then best="$url"; best_t="$t"; fi
   done

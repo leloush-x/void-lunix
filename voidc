@@ -63,10 +63,16 @@ run_check() {
   printf '  %-22s %s\n' "target ($TARGET):" "$(findmnt -rn "$TARGET" >/dev/null 2>&1 && echo 'mounted' || echo 'free')"
   echo
   echo "  disks:"
-  list_disks | sed 's/^/    /'
+  local disks; disks="$(list_disks)"
+  if [ -z "$disks" ]; then
+    echo "    (none found — is this the Void live ISO? check firmware/storage mode)"
+  else
+    printf '%s\n' "$disks" | sed 's/^/    /'
+  fi
   echo
   printf '  %-22s ' "default mirror:"
-  if mirror_reachable "$DEFAULT_MIRROR"; then echo "reachable"; else echo "NOT reachable (check network)"; fi
+  if ! command -v curl >/dev/null 2>&1; then echo "unknown (curl missing)"; \
+  elif mirror_reachable "$DEFAULT_MIRROR"; then echo "reachable"; else echo "NOT reachable (check network)"; fi
   printf '  %-22s ' "fastest mirror:"
   local fastest; fastest="$(pick_fastest_mirror)"
   echo "${fastest:-none found}"
@@ -94,7 +100,11 @@ log "voidc $VOIDC_VERSION started (mode=$MODE target=$TARGET)"
 
 if [ "$MODE" != check ] && [ "$(id -u)" -ne 0 ]; then
   if command -v sudo >/dev/null 2>&1; then
-    exec sudo -E "$0" ${ORIG_ARGS[@]+"${ORIG_ARGS[@]}"}
+    if [ "${#ORIG_ARGS[@]}" -gt 0 ]; then
+      exec sudo "$0" "${ORIG_ARGS[@]}"
+    else
+      exec sudo "$0"
+    fi
   fi
   die "Please run as root."
 fi
