@@ -8,6 +8,8 @@ install_bootloader() {
     local luks_uuid; luks_uuid="$(uuid_of "$LUKSDEV")"
     [ -n "$luks_uuid" ] || die "Could not read LUKS UUID from $LUKSDEV"
     cmdline+=" rd.luks.uuid=$luks_uuid"
+    # the unlock prompt runs in the initramfs before the root keymap applies
+    cmdline+=" rd.vconsole.keymap=${KEYMAP:-us}"
   fi
 
   # kernel command line

@@ -21,6 +21,9 @@ auto_defaults() {
   : "${MIRROR:=auto}"
   : "${DOTFILES_URL:=}"
   : "${RUN_DOTFILES_INSTALL:=no}"
+  # Hyprland comes from a third-party community repo; unattended installs must
+  # opt in explicitly (see auto_require_third_party_repo).
+  : "${ACCEPT_HYPRAND_REPO:=no}"
   # multilib is needed for 32-bit apps and for nvidia-libs-32bit; auto-enable
   # it on glibc x86_64 unless the user opted out (EXTRAS already lists
   # multilib) or this is a minimal/server install with no 32-bit needs.
@@ -50,6 +53,29 @@ validate_swap_mb() {
   return 1
 }
 
+# DOTFILES_URL is interpolated into a single-quoted shell command by
+# rice.sh (clone_dotfiles), so anything that could break out of that quoting
+# must be rejected: single quotes, whitespace and control characters. Empty is
+# allowed and means "no dotfiles repo". Shared by auto_validate and the wizard.
+valid_dotfiles_url() { # valid_dotfiles_url <url>
+  case "$1" in
+    '') return 0 ;;
+    *"'"*|*[[:space:]]*|*[[:cntrl:]]*) return 1 ;;
+    https://*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Third-party repos are opt-in. Hyprland is not packaged in Void, so an
+# unattended profile that selects it must acknowledge the hyprland-void
+# community repo with ACCEPT_HYPRAND_REPO=yes. The wizard asks interactively
+# instead (step_desktop), so this gate is only used from run_auto().
+auto_require_third_party_repo() {
+  if [ "$DESKTOP" = hyprland ] && [ "${ACCEPT_HYPRAND_REPO:-no}" != yes ]; then
+    die "DESKTOP=hyprland installs from the third-party hyprland-void community repo (github.com/Makrennel/hyprland-void). Set ACCEPT_HYPRAND_REPO=yes in the profile to accept it."
+  fi
+}
+
 auto_validate() {
   [ -n "${DISK:-}" ] || die "Profile error: DISK is required."
   [ -b "$DISK" ] || die "Not a block device: $DISK"
@@ -77,6 +103,8 @@ auto_validate() {
     *) die "MIRROR must be 'auto', 'default' or an http(s) URL: ${MIRROR:-}." ;;
   esac
   validate_swap_mb "$SWAP_MB"
+  valid_dotfiles_url "${DOTFILES_URL:-}" \
+    || die "Invalid DOTFILES_URL: must be empty or an https:// URL with no single quotes, spaces or control characters."
   if [ "$DESKTOP" = custom ]; then
     [ -n "${CUSTOM_PKGS:-}" ] || die "DESKTOP=custom requires CUSTOM_PKGS."
     local cp
@@ -93,6 +121,8 @@ auto_validate() {
     *) die "Unknown DESKTOP: $DESKTOP";;
   esac
   if [ "$DESKTOP" = hyprland ]; then
+    # run_auto() additionally requires ACCEPT_HYPRAND_REPO=yes before touching
+    # anything (third-party repo); here we only note that it will be enabled.
     warnlog "Hyprland: the third-party hyprland-void community repo will be enabled."
   fi
   case "$SESSION" in any|x11|wayland) ;; *) die "SESSION must be any|x11|wayland";; esac
@@ -128,6 +158,7 @@ run_auto() {
   detect_environment
   auto_defaults
   auto_validate
+  auto_require_third_party_repo
   auto_resolve_mirror
 
   say "Unattended install: $DISK -> $FILESYSTEM, desktop=$DESKTOP"

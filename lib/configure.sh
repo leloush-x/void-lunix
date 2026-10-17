@@ -48,13 +48,19 @@ write_locale() {
   verb "locale configured: $LOCALE"
 }
 
+# escape sed replacement metacharacters (& and \) in a value
+esc() { printf '%s' "$1" | sed 's/[&\\]/\\&/g'; }
+
 write_keymap() {
   local rc="$TARGET/etc/rc.conf"
   if [ -f "$rc" ]; then
-    sed -i -E "s|^#?KEYMAP=.*|KEYMAP=\"$KEYMAP\"|"            "$rc"
-    sed -i -E "s|^#?HARDWARECLOCK=.*|HARDWARECLOCK=\"UTC\"|"   "$rc"
-    sed -i -E "s|^#?TIMEZONE=.*|TIMEZONE=\"$TIMEZONE\"|"       "$rc"
+    sed -i -E "s|^#?KEYMAP=.*|KEYMAP=\"$(esc "$KEYMAP")\"|"       "$rc"
+    sed -i -E "s|^#?HARDWARECLOCK=.*|HARDWARECLOCK=\"UTC\"|"      "$rc"
+    sed -i -E "s|^#?TIMEZONE=.*|TIMEZONE=\"$(esc "$TIMEZONE")\"|" "$rc"
   fi
+  # dracut's vconsole module reads this in the initramfs, so a LUKS passphrase
+  # can be typed with the user's layout on non-US keyboards
+  printf 'KEYMAP=%s\n' "$KEYMAP" >"$TARGET/etc/vconsole.conf"
   # console keymap names differ from XKB layouts (uk vs gb, de-latin1 vs de):
   # strip the console suffix and translate the common ones
   local xkb="${KEYMAP%%-*}"
@@ -189,9 +195,9 @@ EOF
 write_dracut_conf() {
   if [ "$LUKS" = yes ]; then
     mkdir -p "$TARGET/etc/dracut.conf.d"
-    printf '# voidc: ensure crypt support in initramfs\nadd_dracutmodules+=" crypt "\n' \
+    printf '# voidc: ensure crypt + console keymap support in initramfs\nadd_dracutmodules+=" crypt vconsole "\n' \
       >"$TARGET/etc/dracut.conf.d/10-voidc-crypt.conf"
-    verb "dracut crypt module enabled"
+    verb "dracut crypt/vconsole modules enabled"
   fi
 }
 

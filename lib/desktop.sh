@@ -113,7 +113,18 @@ desktop_session_cmd() {
     mate)     printf 'mate-session\n' ;;
     cinnamon) printf 'cinnamon-session\n' ;;
     budgie)   printf 'budgie-desktop\n' ;;
-    kde)      printf 'startplasma-x11\n' ;;
+    kde)
+      # Plasma ships both sessions; startplasma-x11 would force X11 even on a
+      # Wayland-only stack. Honor SESSION so greetd/autostart launch the right one.
+      if [ "${SESSION:-any}" = wayland ]; then
+        printf 'startplasma-wayland\n'
+      else
+        printf 'startplasma-x11\n'
+      fi
+      ;;
+    # gnome-session selects Wayland automatically on modern GNOME (Wayland by
+    # default, X11 still available via the session menu), so there is nothing
+    # to branch on here.
     gnome)    printf 'gnome-session\n' ;;
     *)        printf 'startx\n' ;;
   esac

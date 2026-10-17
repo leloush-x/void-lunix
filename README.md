@@ -84,10 +84,14 @@ $EDITOR my.conf                    # set DISK, passwords, etc.
 
 See `profiles/` for every supported key.
 
-> **Security note:** profiles are sourced as shell (`voidc --auto foo.conf`
-> runs `. foo.conf`), so only run profiles you trust — they can execute
-> arbitrary commands as root. Leave `ROOT_PASS`/`USER_PASS`/`LUKS_PASSWORD`
-> out of any profile you share; never commit real passwords.
+> ⚠️ **Security — profiles are sourced as shell.** `voidc --auto foo.conf`
+> runs `. foo.conf`, so only run profiles you trust: they can execute arbitrary
+> commands as root. Leave `ROOT_PASS`/`USER_PASS`/`LUKS_PASSWORD` out of any
+> profile you share, and never commit real passwords.
+
+> **`--target` safety:** the target must be an absolute path under `/`; voidc
+> refuses `/`, the running system (`/usr`, …) and any non-absolute path, so the
+> default `/mnt` is always safe.
 
 ## Testing in a VM (recommended before real hardware)
 
@@ -240,14 +244,14 @@ tests/                sandboxed end-to-end dry run (tests/run.sh)
 - **Swap**: `auto` = system RAM capped at 4 GiB; presets are 2/4/8 GiB or a
   typed custom size of 64-65536 MiB. Swap serves memory pressure only —
   suspend-to-disk is not configured (no `resume=` kernel parameter).
-- **Profiles are sourced as shell** (`voidc --auto foo.conf` runs `. foo.conf`),
-  so only use profiles you trust — they can run arbitrary commands. In
-  unattended mode multilib is auto-enabled on glibc x86_64 when a desktop or
-  the NVIDIA driver is selected.
+- **Unattended multilib** is auto-enabled on glibc x86_64 when a desktop or the
+  NVIDIA driver is selected. (Profiles are sourced as shell — see
+  [Unattended install](#unattended-install).)
 - **BIOS installs** create a 1 MiB `bios_grub` partition for GRUB.
 - **Every device is `wipefs`-cleaned** — the disk and each new partition —
   before formatting, so leftover RAID/LVM/LUKS signatures can't survive.
-- Target is mounted at `/mnt` by default (`--target` to change it).
+- Target is mounted at `/mnt` by default. `--target` must be an absolute path
+  under `/`; voidc refuses `/`, `/usr` and other running-system directories.
 - Full logs: `/tmp/voidc-*.log` on the live medium, copied to
   `/var/log/voidc-install.log` on the installed system.
 - Unattended profiles contain plain-text passwords — keep them off any repo.

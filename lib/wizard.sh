@@ -307,9 +307,13 @@ step_extras() {
   # shellcheck disable=SC2034
   DOTFILES_URL=""
   if ui_yesno "Clone a dotfiles repo into ~/.dotfiles?" 8 60; then
-    # consumed by rice.sh (clone_dotfiles)
-    # shellcheck disable=SC2034
-    DOTFILES_URL="$(ui_input "Git URL of your dotfiles repo:" 9 74 "https://github.com/user/dotfiles")" || wizard_abort
+    # re-prompt on invalid input: the URL is interpolated into a shell command
+    # by clone_dotfiles, so reject quotes/whitespace via the shared validator
+    while :; do
+      DOTFILES_URL="$(ui_input "Git URL of your dotfiles repo (https):" 9 74 "https://github.com/user/dotfiles")" || wizard_abort
+      valid_dotfiles_url "$DOTFILES_URL" && break
+      ui_msg "Invalid URL: '$DOTFILES_URL'\n\nUse an https:// git URL with no spaces, quotes\nor control characters." 10 64
+    done
     # shellcheck disable=SC2034
     ui_yesno "Run the dotfiles install script too?" 8 60 && RUN_DOTFILES_INSTALL=yes || RUN_DOTFILES_INSTALL=no
   fi

@@ -49,6 +49,51 @@ Options:
 EOF
 }
 
+# _lexical_realpath <abs-path> -> normalised path without touching the
+# filesystem. `readlink -f` returns nothing for paths that do not exist yet
+# (and busybox only resolves existing paths), so fall back to this.
+_lexical_realpath() {
+  local p="$1" comp
+  local -a stack=() parts=()
+  local IFS='/'
+  read -r -a parts <<<"$p"
+  for comp in "${parts[@]}"; do
+    case "$comp" in
+      ''|.) continue ;;
+      ..)   [ "${#stack[@]}" -gt 0 ] && unset 'stack[${#stack[@]}-1]' ;;
+      *)    stack+=("$comp") ;;
+    esac
+  done
+  if [ "${#stack[@]}" -eq 0 ]; then printf '/\n'
+  else printf '/%s\n' "${stack[*]}"; fi
+}
+
+# guard_target — refuse dangerous --target values. The installer wipes and
+# mounts TARGET, so it must be an absolute path below / that is not the running
+# system itself (the live medium) nor one of its core directories.
+guard_target() {
+  local t="$TARGET" canon
+  [ -n "$t" ] || die "--target must not be empty"
+  case "$t" in
+    /*) ;;
+    *)  die "--target must be an absolute path below / (got '$t')" ;;
+  esac
+
+  canon="$(readlink -f -- "$t" 2>/dev/null)"
+  [ -n "$canon" ] || canon="$(_lexical_realpath "$t")"
+  case "$canon" in
+    /)  ;;
+    */) canon="${canon%/}" ;;
+  esac
+
+  [ "$canon" != "/" ] \
+    || die "--target must not be the running system root (/)"
+  case "$canon" in
+    /usr|/bin|/sbin|/lib|/lib32|/lib64|/libexec|/etc|/boot|/efi|/var|/dev|/proc|/sys|/run|/root|/home|/srv|/opt)
+      die "--target must not be a running-system directory ($canon)" ;;
+  esac
+}
+
 run_check() {
   say "voidc $VOIDC_VERSION — environment check"
   detect_environment
@@ -95,6 +140,9 @@ while [ $# -gt 0 ]; do
     *) usage; die "Unknown argument: $1" ;;
   esac
 done
+
+# never let a bad --target wipe the running system or write outside the root
+guard_target
 
 log "voidc $VOIDC_VERSION started (mode=$MODE target=$TARGET)"
 

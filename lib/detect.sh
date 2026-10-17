@@ -64,13 +64,60 @@ detect_environment() {
   verb "detected: uefi=$UEFI${EFI_TARGET:+ ($EFI_TARGET)} arch=$arch libc=$LIBC ram=${RAM_MB}MB ucode=${UCODE[*]:-none}"
 }
 
+# disk_is_removable <device> -> 0 when the kernel flags the device removable
+# (USB sticks, SD cards, ...). A missing /sys/block entry means "not
+# removable", so devices that have no sysfs presence stay installable.
+disk_is_removable() {
+  local name="$1" base
+  base="${name##*/}"
+  [ -n "$base" ] || return 1
+  [ -r "/sys/block/$base/removable" ] || return 1
+  [ "$(cat "/sys/block/$base/removable" 2>/dev/null)" = 1 ]
+}
+
+# _live_medium_disk -> whole-disk device hosting the live medium (best effort;
+# prints nothing when it cannot be determined). Installing onto the stick we
+# booted from would destroy the running installer.
+_live_medium_disk() {
+  local mp src parent
+  for mp in /run/iso /; do
+    src="$(findmnt -n -o SOURCE --target "$mp" 2>/dev/null | head -n1)"
+    [ -n "$src" ] || continue
+    # skip virtual/loop-backed mounts (the squashfs or an overlay root) so we
+    # keep looking for the real disk underneath
+    case "$src" in
+      /dev/loop*|/dev/zram*|/dev/dm-*|/dev/mapper/*) continue ;;
+      /dev/*) ;;
+      *) continue ;;
+    esac
+    [ -b "$src" ] || continue
+    parent="$(lsblk -no PKNAME "$src" 2>/dev/null | head -n1)"
+    if [ -n "$parent" ]; then
+      case "$parent" in loop*|zram*|dm-*) continue ;; esac
+      src="/dev/$parent"
+    fi
+    printf '%s\n' "$src"
+    return 0
+  done
+  return 0
+}
+
 # list_disks -> lines "NAME SIZE MODEL"
 list_disks() {
-  # -d: only whole disks, not their partitions (a partition is not installable)
-  lsblk -d -pno NAME,SIZE,MODEL 2>/dev/null \
-    | grep -vE '/dev/(loop|zram|sr|ram|fd|md|dm)' \
-    | grep -vE '/dev/mapper/' \
-    | grep -vE '^[[:space:]]*$'
+  # -d: only whole disks, not their partitions (a partition is not installable).
+  # Also skip pseudo/virtual devices, removable media and the live medium.
+  local live name size model
+  live="$(_live_medium_disk)"
+  while read -r name size model; do
+    [ -n "$name" ] || continue
+    case "$name" in
+      /dev/loop*|/dev/zram*|/dev/sr*|/dev/ram*|/dev/fd*|/dev/md*|/dev/dm-*|/dev/mapper/*)
+        continue ;;
+    esac
+    if disk_is_removable "$name"; then continue; fi
+    if [ -n "$live" ] && [ "$name" = "$live" ]; then continue; fi
+    printf '%s %s%s\n' "$name" "$size" "${model:+ $model}"
+  done < <(lsblk -d -pno NAME,SIZE,MODEL 2>/dev/null)
 }
 
 # repo_url <base> -> full repository URL for this system's libc
